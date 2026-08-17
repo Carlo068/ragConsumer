@@ -1,0 +1,26 @@
+# Development override -- adds hot reload to the app services by bind-mounting
+# source over what the image baked in at build time, and swapping each
+# service's start command for one that watches for changes.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# (docker-compose.yml alone is the production configuration, unchanged.)
+
+services:
+  backend:
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  ingestion-worker:
+    volumes:
+      - ./ingestion_worker/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+  mcp_server:
+    volumes:
+      - ./mcp_server/app:/app/app
+    # No uvicorn CLI here (mcp.run() is called directly in app/main.py), so
+    # there's no built-in --reload -- watchfiles wraps the process and
+    # restarts it whenever a file under app/ changes.
+    command: watchfiles "python -m app.main" app

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.models import DocumentStatus
 
@@ -25,6 +25,23 @@ class CollectionOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CollectionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class CollectionUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class McpActiveCollectionOut(BaseModel):
+    collection_id: uuid.UUID | None
+    collection_name: str | None
+
+
+class McpActiveCollectionSet(BaseModel):
+    collection_id: uuid.UUID | None
 
 
 class DocumentOut(BaseModel):

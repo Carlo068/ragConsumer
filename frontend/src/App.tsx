@@ -14,8 +14,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/collections" element={<CollectionsPage />} />
-            <Route path="/upload" element={<UploadPage />} />
-            <Route path="/connect" element={<ConnectPage />} />
+            <Route path="/collections/:collectionId/upload" element={<UploadPage />} />
+            <Route path="/collections/:collectionId/connect" element={<ConnectPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/collections" replace />} />
         </Routes>

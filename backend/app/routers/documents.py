@@ -5,25 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_collection_membership
+from app.config import settings
 from app.db import get_db
-from app.models import CollectionMember, Document, User
+from app.models import Document, User
 from app.schemas import DocumentOut
-from app.storage import BUCKET_NAME, minio_client
+from app.storage import BUCKET_NAME, delete_object, minio_client
+from app.vectorstore import delete_document_chunks
 
 router = APIRouter(prefix="/collections", tags=["documents"])
-
-
-def _require_membership(db: Session, user_id: uuid.UUID, collection_id: uuid.UUID) -> None:
-    member = db.scalar(
-        select(CollectionMember).where(
-            CollectionMember.user_id == user_id,
-            CollectionMember.collection_id == collection_id,
-        )
-    )
-    if member is None:
-        # 404, not 403 — don't reveal whether the collection exists at all
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
 
 
 @router.post(
@@ -37,12 +27,19 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _require_membership(db, current_user.id, collection_id)
+    require_collection_membership(db, current_user.id, collection_id)
+
+    contents = await file.read()
+    if len(contents) > settings.MAX_UPLOAD_SIZE_BYTES:
+        max_mb = settings.MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"File exceeds the {max_mb:.0f} MB upload limit",
+        )
 
     doc_id = uuid.uuid4()
     object_key = f"collection-{collection_id}/doc-{doc_id}/{file.filename}"
 
-    contents = await file.read()
     minio_client.put_object(
         BUCKET_NAME,
         object_key,
@@ -70,7 +67,7 @@ def list_documents(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _require_membership(db, current_user.id, collection_id)
+    require_collection_membership(db, current_user.id, collection_id)
 
     documents = db.scalars(
         select(Document)
@@ -78,3 +75,29 @@ def list_documents(
         .order_by(Document.created_at.desc())
     ).all()
     return documents
+
+
+@router.delete(
+    "/{collection_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_document(
+    collection_id: uuid.UUID,
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_collection_membership(db, current_user.id, collection_id)
+
+    document = db.scalar(
+        select(Document).where(
+            Document.id == document_id, Document.collection_id == collection_id
+        )
+    )
+    if document is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found")
+
+    delete_document_chunks(str(document_id))
+    delete_object(document.object_key)
+
+    db.delete(document)
+    db.commit()

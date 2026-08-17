@@ -53,5 +53,10 @@ export function useDocuments(collectionId: string) {
     }
   }
 
-  return { documents, loading, error, uploading, upload }
+  async function remove(documentId: string) {
+    await documentsService.remove(collectionId, documentId)
+    await refresh()
+  }
+
+  return { documents, loading, error, uploading, upload, remove }
 }

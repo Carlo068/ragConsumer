@@ -15,7 +15,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/collections" element={<CollectionsPage />} />
             <Route path="/collections/:collectionId/upload" element={<UploadPage />} />
-            <Route path="/collections/:collectionId/connect" element={<ConnectPage />} />
+            <Route path="/connect" element={<ConnectPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/collections" replace />} />
         </Routes>

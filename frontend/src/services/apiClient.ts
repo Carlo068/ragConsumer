@@ -10,11 +10,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // Skip Content-Type for FormData bodies -- fetch needs to set its own
+  // multipart boundary, which a manually-set Content-Type would break.
+  const isFormData = options.body instanceof FormData
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     },
   })
@@ -37,5 +40,11 @@ export const apiClient = {
     request<T>(path, {
       method: "POST",
       body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+  // Separate from post() because a multipart body must NOT be JSON-stringified.
+  postForm: <T>(path: string, form: FormData) =>
+    request<T>(path, {
+      method: "POST",
+      body: form,
     }),
 }

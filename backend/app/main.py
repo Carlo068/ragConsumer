@@ -3,9 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.routers import auth, collections
+from app.routers import auth, collections, documents
+from app.storage import ensure_bucket
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    ensure_bucket()
 
 # Added before CORSMiddleware so CORS ends up as the outermost layer
 # (Starlette wraps middleware in reverse add-order) and handles preflight
@@ -27,6 +33,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(collections.router)
+app.include_router(documents.router)
 
 
 @app.get("/")

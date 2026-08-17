@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.routers import auth, collections, documents
+from app.routers import auth, collections, documents, mcp_config
 from app.storage import ensure_bucket
 
 app = FastAPI()
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(collections.router)
 app.include_router(documents.router)
+app.include_router(mcp_config.router)
 
 
 @app.get("/")

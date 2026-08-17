@@ -19,7 +19,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    collection_links: Mapped[list["CollectionMember"]] = relationship(back_populates="user")
+    collection_links: Mapped[list["CollectionMember"]] = relationship(
+        back_populates="user", passive_deletes=True
+    )
 
 
 class Collection(Base):
@@ -29,8 +31,12 @@ class Collection(Base):
     name: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    member_links: Mapped[list["CollectionMember"]] = relationship(back_populates="collection")
-    documents: Mapped[list["Document"]] = relationship(back_populates="collection")
+    member_links: Mapped[list["CollectionMember"]] = relationship(
+        back_populates="collection", passive_deletes=True
+    )
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="collection", passive_deletes=True
+    )
 
 
 class CollectionMember(Base):
@@ -77,3 +83,19 @@ class Document(Base):
     )
 
     collection: Mapped["Collection"] = relationship(back_populates="documents")
+
+
+class McpActiveCollection(Base):
+    """Singleton row (id is always 1): which collection the one shared MCP
+    server currently exposes. Read fresh by mcp_server on every tool call, so
+    toggling it here takes effect immediately with no restart."""
+
+    __tablename__ = "mcp_active_collection"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    collection_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("collections.id", ondelete="SET NULL"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )

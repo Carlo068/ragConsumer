@@ -37,7 +37,7 @@ langsmith==0.11.0
 loguru==0.7.3
 magika==0.6.2
 markdownify==1.2.3
-markitdown==0.1.7
+markitdown[pdf,docx]==0.1.7
 minio==7.2.20
 mmh3==5.2.1
 numpy==2.5.2

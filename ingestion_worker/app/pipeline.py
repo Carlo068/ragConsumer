@@ -103,36 +103,44 @@ def chunk_point_id(doc_id: str, chunk_index: int) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{doc_id}:{chunk_index}"))
 
 
+EMBED_BATCH_SIZE = 64
+
+
 def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[str]) -> None:
-    if not chunks:
-        return
+    # Embedding + upserting the whole document's chunks in one shot holds every
+    # dense/sparse vector for every chunk in memory at once -- for a large
+    # document that's enough to OOM-kill the worker (confirmed: a 5.5MB, ~1300
+    # page PDF did exactly this). Batching bounds peak memory to one batch's
+    # worth of vectors regardless of document size.
+    for batch_start in range(0, len(chunks), EMBED_BATCH_SIZE):
+        batch = chunks[batch_start : batch_start + EMBED_BATCH_SIZE]
 
-    dense_vectors = list(_dense_model.embed(chunks))
-    sparse_vectors = list(_sparse_model.embed(chunks))
+        dense_vectors = list(_dense_model.embed(batch))
+        sparse_vectors = list(_sparse_model.embed(batch))
 
-    points = [
-        models.PointStruct(
-            id=chunk_point_id(doc_id, idx),
-            vector={
-                "dense": dense_vec.tolist(),
-                "sparse": models.SparseVector(
-                    indices=sparse_vec.indices.tolist(),
-                    values=sparse_vec.values.tolist(),
-                ),
-            },
-            payload={
-                "collection_id": collection_id,
-                "doc_id": doc_id,
-                "chunk_index": idx,
-                "source_filename": filename,
-                "text": text_chunk,
-            },
-        )
-        for idx, (text_chunk, dense_vec, sparse_vec) in enumerate(
-            zip(chunks, dense_vectors, sparse_vectors)
-        )
-    ]
-    _qdrant_client.upsert(collection_name=QDRANT_COLLECTION, points=points)
+        points = [
+            models.PointStruct(
+                id=chunk_point_id(doc_id, batch_start + offset),
+                vector={
+                    "dense": dense_vec.tolist(),
+                    "sparse": models.SparseVector(
+                        indices=sparse_vec.indices.tolist(),
+                        values=sparse_vec.values.tolist(),
+                    ),
+                },
+                payload={
+                    "collection_id": collection_id,
+                    "doc_id": doc_id,
+                    "chunk_index": batch_start + offset,
+                    "source_filename": filename,
+                    "text": text_chunk,
+                },
+            )
+            for offset, (text_chunk, dense_vec, sparse_vec) in enumerate(
+                zip(batch, dense_vectors, sparse_vectors)
+            )
+        ]
+        _qdrant_client.upsert(collection_name=QDRANT_COLLECTION, points=points)
 
 
 # --- End-to-end per-object pipeline -------------------------------------------

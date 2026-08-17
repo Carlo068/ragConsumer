@@ -1,4 +1,4 @@
-from urllib.parse import unquote
+from urllib.parse import unquote_plus
 
 from fastapi import FastAPI, Request
 
@@ -22,7 +22,7 @@ async def webhook(request: Request):
     body = await request.json()
     for record in body.get("Records", []):
         bucket = record["s3"]["bucket"]["name"]
-        key = unquote(record["s3"]["object"]["key"])
+        key = unquote_plus(record["s3"]["object"]["key"])
         try:
             process_object(bucket, key)
         except Exception as exc:  # noqa: BLE001 - one bad record shouldn't 500 the whole webhook

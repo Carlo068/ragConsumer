@@ -69,10 +69,13 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_SECURE: "False"
       MINIO_BUCKET: documents
+      QDRANT_URL: http://qdrant:6333
     depends_on:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_started
+      qdrant:
         condition: service_started
     ports:
       - "127.0.0.1:8000:8000"

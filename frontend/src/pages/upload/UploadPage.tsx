@@ -8,7 +8,9 @@ import { UploadForm } from "./components/UploadForm"
 export function UploadPage() {
   const { collectionId } = useParams<{ collectionId: string }>()
   const { collections } = useCollections()
-  const { documents, loading, error, uploading, upload } = useDocuments(collectionId!)
+  const { documents, loading, error, uploading, upload, remove } = useDocuments(
+    collectionId!
+  )
 
   const collection = collections.find((c) => c.id === collectionId)
 
@@ -34,7 +36,7 @@ export function UploadPage() {
 
       {loading && <p>Loading documents...</p>}
       {error && <p className="text-destructive">{error}</p>}
-      <DocumentList documents={documents} />
+      <DocumentList documents={documents} onDelete={remove} />
     </div>
   )
 }

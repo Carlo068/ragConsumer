@@ -10,4 +10,7 @@ export const documentsService = {
     form.append("file", file)
     return apiClient.postForm<Document>(`/collections/${collectionId}/documents`, form)
   },
+
+  remove: (collectionId: string, documentId: string) =>
+    apiClient.delete(`/collections/${collectionId}/documents/${documentId}`),
 }

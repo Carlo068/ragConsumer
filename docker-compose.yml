@@ -98,15 +98,16 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
 
-  # One MCP server instance = one collection, fixed at startup (see the
-  # plan's network-scoped MCP design -- no collection_id is ever accepted
-  # as a tool argument). COLLECTION_ID here is a placeholder; set it to a
-  # real collection's id before running, and duplicate this service block
-  # (with a different name/port) for each collection you want to expose.
+  # One shared MCP server, always on the same URL. Which collection it
+  # exposes is not fixed at startup -- it's read fresh from the
+  # mcp_active_collection row on every tool call, toggled from the
+  # frontend's Connect page. Only one collection can be active at a time.
+  # Still never a tool argument: an MCP client can query whatever is
+  # currently active, but can't change it -- only the authenticated web app
+  # can (via PUT /mcp/active-collection, gated by collection membership).
   mcp_server:
     build: ./mcp_server
     environment:
-      COLLECTION_ID: ${MCP_COLLECTION_ID:-}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       QDRANT_URL: http://qdrant:6333
     depends_on:

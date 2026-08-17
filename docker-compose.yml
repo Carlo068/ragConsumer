@@ -25,7 +25,12 @@ services:
       # Registers a webhook notification target named INGEST -- minio-init
       # subscribes the bucket to it below.
       MINIO_NOTIFY_WEBHOOK_ENABLE_INGEST: "on"
-      MINIO_NOTIFY_WEBHOOK_ENDPOINT_INGEST: "http://ingestion_worker:8001/webhook"
+      # Must be a hyphen, not an underscore: MinIO validates this hostname
+      # against strict RFC 1123 syntax at its own startup, and rejects an
+      # underscore as "invalid hostname" even though Docker's own DNS
+      # resolves it fine (confirmed via `getent hosts` -- this cost real
+      # debugging time, see KAN-37).
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_INGEST: "http://ingestion-worker:8001/webhook"
     volumes:
       - minio_data:/data
     ports:
@@ -33,7 +38,7 @@ services:
       - "127.0.0.1:9001:9001"
 
   # One-shot: creates the bucket and wires up the s3:ObjectCreated webhook to
-  # ingestion_worker, then exits. Safe to re-run (mb/event add are idempotent).
+  # ingestion-worker, then exits. Safe to re-run (mb/event add are idempotent).
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -42,7 +47,7 @@ services:
       /bin/sh -c "
         until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 2; done;
         mc mb --ignore-existing local/documents;
-        mc event add local/documents arn:minio:sqs::INGEST:webhook --event s3:ObjectCreated:* || true;
+        mc event add local/documents arn:minio:sqs::INGEST:webhook --event put || true;
         exit 0
       "
 
@@ -72,7 +77,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
 
-  ingestion_worker:
+  ingestion-worker:
     build: ./ingestion_worker
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ragconsumer}
@@ -85,8 +90,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
       qdrant:
         condition: service_started
     ports:

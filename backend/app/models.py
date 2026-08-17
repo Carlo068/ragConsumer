@@ -19,33 +19,33 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    case_links: Mapped[list["CaseLawyer"]] = relationship(back_populates="user")
+    collection_links: Mapped[list["CollectionMember"]] = relationship(back_populates="user")
 
 
-class Case(Base):
-    __tablename__ = "cases"
+class Collection(Base):
+    __tablename__ = "collections"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    lawyer_links: Mapped[list["CaseLawyer"]] = relationship(back_populates="case")
-    documents: Mapped[list["Document"]] = relationship(back_populates="case")
+    member_links: Mapped[list["CollectionMember"]] = relationship(back_populates="collection")
+    documents: Mapped[list["Document"]] = relationship(back_populates="collection")
 
 
-class CaseLawyer(Base):
-    __tablename__ = "case_lawyers"
+class CollectionMember(Base):
+    __tablename__ = "collection_members"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    case_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("cases.id", ondelete="CASCADE"), primary_key=True
+    collection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True
     )
     granted_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    user: Mapped["User"] = relationship(back_populates="case_links")
-    case: Mapped["Case"] = relationship(back_populates="lawyer_links")
+    user: Mapped["User"] = relationship(back_populates="collection_links")
+    collection: Mapped["Collection"] = relationship(back_populates="member_links")
 
 
 class DocumentStatus(str, enum.Enum):
@@ -59,8 +59,8 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    case_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("cases.id", ondelete="CASCADE"), index=True
+    collection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("collections.id", ondelete="CASCADE"), index=True
     )
     uploaded_by: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT")
@@ -76,4 +76,4 @@ class Document(Base):
         server_default=func.now(), onupdate=func.now()
     )
 
-    case: Mapped["Case"] = relationship(back_populates="documents")
+    collection: Mapped["Collection"] = relationship(back_populates="documents")

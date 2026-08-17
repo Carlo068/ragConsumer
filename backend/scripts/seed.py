@@ -7,14 +7,14 @@ from sqlalchemy import select
 
 from app.auth import hash_password
 from app.db import SessionLocal
-from app.models import Case, CaseLawyer, User
+from app.models import Collection, CollectionMember, User
 
 SEED_USERS = [
     {"email": "alice@example.com", "password": "devpassword1"},
     {"email": "bob@example.com", "password": "devpassword2"},
 ]
 
-SEED_CASES = ["Smith v. Jones", "Doe Estate", "Acme Corp Dispute"]
+SEED_COLLECTIONS = ["Smith v. Jones", "Doe Estate", "Acme Corp Dispute"]
 
 ACCESS = {
     "alice@example.com": ["Smith v. Jones", "Doe Estate"],
@@ -32,24 +32,25 @@ def get_or_create_user(db, email, password):
     return user
 
 
-def get_or_create_case(db, name):
-    case = db.scalar(select(Case).where(Case.name == name))
-    if case is not None:
-        return case
-    case = Case(name=name)
-    db.add(case)
+def get_or_create_collection(db, name):
+    collection = db.scalar(select(Collection).where(Collection.name == name))
+    if collection is not None:
+        return collection
+    collection = Collection(name=name)
+    db.add(collection)
     db.flush()
-    return case
+    return collection
 
 
-def grant_access(db, user, case):
+def grant_access(db, user, collection):
     link = db.scalar(
-        select(CaseLawyer).where(
-            CaseLawyer.user_id == user.id, CaseLawyer.case_id == case.id
+        select(CollectionMember).where(
+            CollectionMember.user_id == user.id,
+            CollectionMember.collection_id == collection.id,
         )
     )
     if link is None:
-        db.add(CaseLawyer(user_id=user.id, case_id=case.id))
+        db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
 
 
 def main():
@@ -59,11 +60,13 @@ def main():
             u["email"]: get_or_create_user(db, u["email"], u["password"])
             for u in SEED_USERS
         }
-        cases = {name: get_or_create_case(db, name) for name in SEED_CASES}
+        collections = {
+            name: get_or_create_collection(db, name) for name in SEED_COLLECTIONS
+        }
 
-        for email, case_names in ACCESS.items():
-            for case_name in case_names:
-                grant_access(db, users[email], cases[case_name])
+        for email, collection_names in ACCESS.items():
+            for collection_name in collection_names:
+                grant_access(db, users[email], collections[collection_name])
 
         db.commit()
     finally:

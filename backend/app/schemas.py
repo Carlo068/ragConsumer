@@ -15,7 +15,7 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
-class CaseOut(BaseModel):
+class CollectionOut(BaseModel):
     id: uuid.UUID
     name: str
 

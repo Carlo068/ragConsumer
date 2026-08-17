@@ -1,4 +1,4 @@
-import type { ReactElement } from "react"
+import { useState, type ReactElement } from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,8 +26,15 @@ export function ConfirmDialog({
   confirmLabel = "Delete",
   onConfirm,
 }: ConfirmDialogProps) {
+  const [open, setOpen] = useState(false)
+
+  function handleConfirm() {
+    onConfirm()
+    setOpen(false)
+  }
+
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger render={trigger} />
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -38,7 +45,7 @@ export function ConfirmDialog({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-white hover:bg-destructive/90"
-            onClick={onConfirm}
+            onClick={handleConfirm}
           >
             {confirmLabel}
           </AlertDialogAction>

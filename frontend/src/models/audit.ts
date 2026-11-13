@@ -35,6 +35,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   member_removed: "Person removed from a matter",
   document_uploaded: "File uploaded",
   document_deleted: "File deleted",
+  document_reingested: "File retried",
   token_created: "Access key created",
   token_revoked: "Access key revoked",
   ai_access_enabled: "AI turned on for a matter",

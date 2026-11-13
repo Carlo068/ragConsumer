@@ -12,7 +12,7 @@ import { UploadForm } from "./components/UploadForm"
 export function UploadPage() {
   const { collectionId } = useParams<{ collectionId: string }>()
   const { collections } = useCollections()
-  const { documents, loading, error, uploading, upload, remove } = useDocuments(
+  const { documents, loading, error, uploading, upload, remove, retry } = useDocuments(
     collectionId!
   )
 
@@ -55,6 +55,8 @@ export function UploadPage() {
         documents={documents}
         onDelete={remove}
         canDelete={canEditFiles(collection?.role)}
+        canRetry={canEditFiles(collection?.role)}
+        onRetry={retry}
       />
 
       {collection && user && (

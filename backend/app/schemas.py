@@ -118,6 +118,7 @@ class DocumentOut(BaseModel):
     collection_id: uuid.UUID
     source_filename: str
     status: DocumentStatus
+    error_message: str | None = None
     created_at: datetime
 
     class Config:

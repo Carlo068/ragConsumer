@@ -1,6 +1,6 @@
 ---
 name: run-checks
-description: Runs every ragConsumer check in one command — backend pytest (with the venv correctly activated), frontend tsc, Vitest and oxlint, and optionally the running Docker stack's health — then prints a PASS/FAIL summary. Use after any code change, before marking a Jira ticket Done, before committing, after a rebase or merge, or whenever asked to "run the tests" or "check everything works".
+description: Runs every ragConsumer check in one command — backend pytest (with the venv correctly activated), mcp_server pytest (run in its Docker image), frontend tsc, Vitest and oxlint, and optionally the running Docker stack's health — then prints a PASS/FAIL summary. Use after any code change, before marking a Jira ticket Done, before committing, after a rebase or merge, or whenever asked to "run the tests" or "check everything works".
 ---
 
 # Run checks

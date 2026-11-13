@@ -6,6 +6,10 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     QDRANT_URL: str = "http://127.0.0.1:6333"
+    # Also the secret Qdrant verifies its JWTs with (service.jwt_rbac), so
+    # it is what lets this server mint read-only tokens. Empty = no auth.
+    QDRANT_API_KEY: str = ""
+    QDRANT_TOKEN_TTL_SECONDS: int = 60
 
     # Where AI clients reach this server; set to the public URL in production.
     PUBLIC_URL: str = "http://localhost:8002"

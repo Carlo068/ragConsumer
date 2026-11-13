@@ -80,7 +80,7 @@ DENSE_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 DENSE_VECTOR_SIZE = 384
 SPARSE_MODEL_NAME = "Qdrant/bm25"
 
-_qdrant_client = QdrantClient(url=settings.QDRANT_URL)
+_qdrant_client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY or None)
 _dense_model = TextEmbedding(model_name=DENSE_MODEL_NAME)
 _sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME)
 

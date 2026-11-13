@@ -16,5 +16,8 @@ class Settings(BaseSettings):
     # Empty = no auth (plain local Qdrant). Always set in compose.
     QDRANT_API_KEY: str = ""
 
+    # How often the worker looks for pending documents even without a webhook.
+    QUEUE_POLL_SECONDS: float = 10.0
+
 
 settings = Settings()

@@ -30,19 +30,22 @@ backend_tests() {
   [[ -f .venv/Scripts/activate ]] || { echo "backend/.venv missing -- create it and pip install -r requirements.txt"; return 1; }
   source .venv/Scripts/activate && python -m pytest -q ${PYTEST_ARGS:-}
 }
-# mcp_server has no host virtualenv (its embedding models are heavy), so its
-# tests run in its own image with the tests mounted in and pytest installed.
-mcp_tests() {
+# mcp_server and ingestion_worker have no host virtualenv (their embedding models
+# are heavy), so their tests run in their own images with the tests mounted in
+# and pytest installed.
+service_tests() {
+  local svc="$1" compose_service="$2"
   cd "$ROOT" || return 1
   local w; w="$(pwd -W 2>/dev/null || pwd)"
-  MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps     -v "$w/mcp_server/__tests__:/app/__tests__" -v "$w/mcp_server/pytest.ini:/app/pytest.ini"     --entrypoint sh mcp_server -c "pip install -q pytest >/dev/null 2>&1; python -m pytest -q"
+  MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps     -v "$w/$svc/__tests__:/app/__tests__" -v "$w/$svc/pytest.ini:/app/pytest.ini"     --entrypoint sh "$compose_service" -c "pip install -q pytest >/dev/null 2>&1; python -m pytest -q"
 }
 frontend_typecheck() { cd "$ROOT/frontend" && npx tsc -b; }
 frontend_tests()     { cd "$ROOT/frontend" && npx vitest run; }
 frontend_lint()      { cd "$ROOT/frontend" && npx oxlint; }   # warnings don't fail; errors do
 
 run "backend pytest"      backend_tests
-run "mcp_server pytest"    mcp_tests
+run "mcp_server pytest"    service_tests mcp_server mcp_server
+run "worker pytest"        service_tests ingestion_worker ingestion-worker
 run "frontend tsc"        frontend_typecheck
 run "frontend vitest"     frontend_tests
 run "frontend oxlint"     frontend_lint

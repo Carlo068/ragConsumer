@@ -63,6 +63,20 @@ class Collection(Base):
     )
 
 
+class CollectionRole(str, enum.Enum):
+    """What someone may do inside one matter. Roles are per matter: the same
+    person can own one matter and merely view another."""
+
+    viewer = "viewer"  # search through their AI, and see the file list
+    editor = "editor"  # also upload and delete files
+    owner = "owner"  # also rename/delete the matter and manage its members
+
+
+# Higher number = more permissions. Kept next to the enum so "at least editor"
+# is one comparison everywhere instead of ad-hoc lists of allowed roles.
+ROLE_RANK = {CollectionRole.viewer: 1, CollectionRole.editor: 2, CollectionRole.owner: 3}
+
+
 class CollectionMember(Base):
     __tablename__ = "collection_members"
 
@@ -71,6 +85,12 @@ class CollectionMember(Base):
     )
     collection_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True
+    )
+    # Deliberately no default: every place that grants access must say which
+    # role, so a forgotten argument fails loudly instead of quietly handing
+    # out the wrong permissions.
+    role: Mapped[CollectionRole] = mapped_column(
+        SqlEnum(CollectionRole, name="collection_role")
     )
     granted_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

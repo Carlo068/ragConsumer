@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.models import DocumentStatus
+from app.models import CollectionRole, DocumentStatus
 
 
 class LoginRequest(BaseModel):
@@ -55,6 +55,9 @@ class InviteAccept(BaseModel):
 class CollectionOut(BaseModel):
     id: uuid.UUID
     name: str
+    # The requesting user's own role on this collection. The UI uses it to
+    # hide actions they can't perform; the server enforces it regardless.
+    role: CollectionRole
 
     class Config:
         from_attributes = True

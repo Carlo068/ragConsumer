@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_collection_membership
+from app.auth import get_current_user, require_collection_role
 from app.config import settings
 from app.db import get_db
-from app.models import Document, User
+from app.models import CollectionRole, Document, User
 from app.schemas import DocumentOut
 from app.storage import BUCKET_NAME, delete_object, minio_client
 from app.vectorstore import delete_document_chunks
@@ -27,7 +27,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_collection_membership(db, current_user.id, collection_id)
+    require_collection_role(db, current_user.id, collection_id, CollectionRole.editor)
 
     contents = await file.read()
     if len(contents) > settings.MAX_UPLOAD_SIZE_BYTES:
@@ -67,7 +67,7 @@ def list_documents(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_collection_membership(db, current_user.id, collection_id)
+    require_collection_role(db, current_user.id, collection_id, CollectionRole.viewer)
 
     documents = db.scalars(
         select(Document)
@@ -86,7 +86,7 @@ def delete_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_collection_membership(db, current_user.id, collection_id)
+    require_collection_role(db, current_user.id, collection_id, CollectionRole.editor)
 
     document = db.scalar(
         select(Document).where(

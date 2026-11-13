@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from app.models import Collection, CollectionMember, Document, DocumentStatus
+from app.models import Collection, CollectionMember, CollectionRole, Document, DocumentStatus
 
 
 def test_create_collection_adds_creator_as_member(logged_in_client):
@@ -22,7 +22,7 @@ def test_rename_requires_membership(client, make_user, db):
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=owner.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=owner.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
 
     client.post("/auth/login", json={"email": "bob@example.com", "password": "password123"})
@@ -36,7 +36,7 @@ def test_rename_updates_name_for_a_member(logged_in_client, db):
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
 
     response = client.patch(f"/collections/{collection.id}", json={"name": "Renamed"})
@@ -50,7 +50,7 @@ def test_delete_collection_cleans_up_minio_and_qdrant(logged_in_client, db, monk
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
     document = Document(
         collection_id=collection.id,
         uploaded_by=user.id,
@@ -98,7 +98,7 @@ def test_delete_collection_requires_membership(client, make_user, db, monkeypatc
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=owner.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=owner.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
 
     called = []

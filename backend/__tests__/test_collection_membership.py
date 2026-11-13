@@ -2,7 +2,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.auth import require_collection_membership
-from app.models import Collection, CollectionMember
+from app.models import Collection, CollectionMember, CollectionRole
 
 
 def test_member_passes_silently(db, make_user):
@@ -10,7 +10,7 @@ def test_member_passes_silently(db, make_user):
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
 
     require_collection_membership(db, user.id, collection.id)  # does not raise

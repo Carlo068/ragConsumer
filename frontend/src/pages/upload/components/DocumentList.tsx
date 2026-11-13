@@ -7,9 +7,10 @@ import type { Document } from "@/models/document"
 interface DocumentListProps {
   documents: Document[]
   onDelete: (documentId: string) => void
+  canDelete: boolean
 }
 
-export function DocumentList({ documents, onDelete }: DocumentListProps) {
+export function DocumentList({ documents, onDelete, canDelete }: DocumentListProps) {
   if (documents.length === 0) {
     return <p className="text-muted-foreground text-sm">No documents uploaded yet.</p>
   }
@@ -22,16 +23,18 @@ export function DocumentList({ documents, onDelete }: DocumentListProps) {
             <span className="text-sm">{doc.source_filename}</span>
             <div className="flex items-center gap-2">
               <StatusBadge status={doc.status} />
-              <ConfirmDialog
-                trigger={
-                  <Button variant="ghost" size="sm">
-                    Delete
-                  </Button>
-                }
-                title={`Delete "${doc.source_filename}"?`}
-                description="This permanently removes the file and everything indexed from it. This can't be undone."
-                onConfirm={() => onDelete(doc.id)}
-              />
+              {canDelete && (
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="ghost" size="sm">
+                      Delete
+                    </Button>
+                  }
+                  title={`Delete "${doc.source_filename}"?`}
+                  description="This permanently removes the file and everything indexed from it. This can't be undone."
+                  onConfirm={() => onDelete(doc.id)}
+                />
+              )}
             </div>
           </CardContent>
         </Card>

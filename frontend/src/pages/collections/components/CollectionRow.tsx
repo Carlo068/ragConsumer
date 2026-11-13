@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { PromptDialog } from "@/components/common/PromptDialog"
-import type { Collection } from "@/models/collection"
+import { canManageCollection, type Collection } from "@/models/collection"
 
 interface CollectionRowProps {
   collection: Collection
@@ -30,27 +30,34 @@ export function CollectionRow({
       >
         {collection.name}
       </Link>
-      <PromptDialog
-        trigger={
-          <Button variant="ghost" size="icon-sm" aria-label="Rename collection">
-            <Pencil />
-          </Button>
-        }
-        title={`Rename "${collection.name}"`}
-        initialValue={collection.name}
-        confirmLabel="Save"
-        onSubmit={onRename}
-      />
-      <ConfirmDialog
-        trigger={
-          <Button variant="ghost" size="icon-sm" aria-label="Delete collection">
-            <Trash2 />
-          </Button>
-        }
-        title={`Delete "${collection.name}"?`}
-        description="This permanently deletes the collection and every document in it. This can't be undone."
-        onConfirm={onDelete}
-      />
+      {!canManageCollection(collection.role) && (
+        <span className="text-muted-foreground text-xs capitalize">{collection.role}</span>
+      )}
+      {canManageCollection(collection.role) && (
+        <>
+          <PromptDialog
+            trigger={
+              <Button variant="ghost" size="icon-sm" aria-label="Rename collection">
+                <Pencil />
+              </Button>
+            }
+            title={`Rename "${collection.name}"`}
+            initialValue={collection.name}
+            confirmLabel="Save"
+            onSubmit={onRename}
+          />
+          <ConfirmDialog
+            trigger={
+              <Button variant="ghost" size="icon-sm" aria-label="Delete collection">
+                <Trash2 />
+              </Button>
+            }
+            title={`Delete "${collection.name}"?`}
+            description="This permanently deletes the collection and every document in it. This can't be undone."
+            onConfirm={onDelete}
+          />
+        </>
+      )}
     </div>
   )
 }

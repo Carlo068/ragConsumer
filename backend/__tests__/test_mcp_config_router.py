@@ -1,4 +1,4 @@
-from app.models import Collection, CollectionMember
+from app.models import Collection, CollectionMember, CollectionRole
 
 
 def test_active_collection_defaults_to_null(logged_in_client):
@@ -32,7 +32,7 @@ def test_set_active_collection_succeeds_for_a_member(logged_in_client, db):
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
 
     response = client.put("/mcp/active-collection", json={"collection_id": str(collection.id)})
@@ -49,7 +49,7 @@ def test_set_active_collection_can_be_cleared(logged_in_client, db):
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
     client.put("/mcp/active-collection", json={"collection_id": str(collection.id)})
 
@@ -65,8 +65,8 @@ def test_only_one_collection_can_be_active_at_once(logged_in_client, db):
     second = Collection(name="Smith v. Jones")
     db.add_all([first, second])
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=first.id))
-    db.add(CollectionMember(user_id=user.id, collection_id=second.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=first.id, role=CollectionRole.owner))
+    db.add(CollectionMember(user_id=user.id, collection_id=second.id, role=CollectionRole.owner))
     db.commit()
 
     client.put("/mcp/active-collection", json={"collection_id": str(first.id)})

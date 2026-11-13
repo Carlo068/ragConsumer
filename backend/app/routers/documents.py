@@ -47,12 +47,13 @@ async def upload_document(
 ):
     require_collection_role(db, current_user.id, collection_id, CollectionRole.editor)
 
-    contents = await file.read()
-    if len(contents) > settings.MAX_UPLOAD_SIZE_BYTES:
-        max_mb = settings.MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)
+    # Read at most one byte past the limit: enough to know it is too big,
+    # without ever holding an arbitrarily large body in memory.
+    contents = await file.read(settings.max_upload_bytes + 1)
+    if len(contents) > settings.max_upload_bytes:
         raise HTTPException(
             status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            f"File exceeds the {max_mb:.0f} MB upload limit",
+            f"File exceeds the {settings.MAX_UPLOAD_MB} MB upload limit",
         )
 
     filename = safe_filename(file.filename)

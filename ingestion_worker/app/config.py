@@ -18,7 +18,9 @@ class Settings(BaseSettings):
 
     # How often the worker looks for pending documents even without a webhook.
     QUEUE_POLL_SECONDS: float = 10.0
-    # A document still "processing" after this long is marked failed (retryable).
+    # A document with no progress (no batch indexed) for this long is marked
+    # failed (retryable). Indexing records progress after every batch, so a
+    # large file that is still moving is never cut off.
     STUCK_AFTER_MINUTES: float = 60.0
 
     # Search models. Chosen on the Spanish legal evaluation set (eval/, KAN-79).

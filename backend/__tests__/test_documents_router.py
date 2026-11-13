@@ -16,8 +16,9 @@ def test_upload_rejects_file_over_the_size_limit(logged_in_client, db, monkeypat
     client, user = logged_in_client
     collection = _create_collection(db, user)
     monkeypatch.setattr("app.routers.documents.minio_client.put_object", lambda *a, **k: None)
+    monkeypatch.setattr("app.config.settings.MAX_UPLOAD_MB", 2)
 
-    oversized = b"x" * (3 * 1024 * 1024)  # over the 2MB default limit
+    oversized = b"x" * (3 * 1024 * 1024)  # over the 2 MB limit
     response = client.post(
         f"/collections/{collection.id}/documents",
         files={"file": ("big.txt", oversized, "text/plain")},
@@ -131,3 +132,32 @@ def test_delete_document_404s_for_a_document_in_a_different_collection(
 
     assert response.status_code == 404
     assert called == []
+
+
+def test_the_limit_is_configurable_and_reported_to_the_ui(logged_in_client, monkeypatch):
+    client, _ = logged_in_client
+    assert client.get("/limits").json() == {"max_upload_bytes": 50 * 1024 * 1024}
+    monkeypatch.setattr("app.config.settings.MAX_UPLOAD_MB", 120)
+    assert client.get("/limits").json() == {"max_upload_bytes": 120 * 1024 * 1024}
+
+
+def test_limits_require_login(client):
+    assert client.get("/limits").status_code == 401
+
+
+def test_a_file_exactly_at_the_limit_is_accepted_and_one_byte_over_is_not(
+    logged_in_client, db, monkeypatch
+):
+    client, user = logged_in_client
+    collection = _create_collection(db, user)
+    monkeypatch.setattr("app.routers.documents.minio_client.put_object", lambda *a, **k: None)
+    monkeypatch.setattr("app.config.settings.MAX_UPLOAD_MB", 1)
+    url = f"/collections/{collection.id}/documents"
+    limit = 1024 * 1024
+
+    ok = client.post(url, files={"file": ("a.pdf", b"x" * limit, "application/pdf")})
+    too_big = client.post(url, files={"file": ("b.pdf", b"x" * (limit + 1), "application/pdf")})
+
+    assert ok.status_code == 201
+    assert too_big.status_code == 413
+    assert "1 MB" in too_big.json()["detail"]

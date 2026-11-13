@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { useCollections } from "@/hooks/useCollections"
 import { useAuth } from "@/hooks/useAuth"
 import { useDocuments } from "@/hooks/useDocuments"
+import { useLimits } from "@/hooks/useLimits"
 import { useMembers } from "@/hooks/useMembers"
 import { canEditFiles, canManageCollection } from "@/models/collection"
 import { DocumentList } from "./components/DocumentList"
@@ -12,6 +13,7 @@ import { UploadForm } from "./components/UploadForm"
 export function UploadPage() {
   const { collectionId } = useParams<{ collectionId: string }>()
   const { collections } = useCollections()
+  const limits = useLimits()
   const { documents, loading, error, uploading, upload, remove, retry } = useDocuments(
     collectionId!
   )
@@ -39,7 +41,7 @@ export function UploadPage() {
 
       {canEditFiles(collection?.role) ? (
         <div className="mb-6">
-          <UploadForm onUpload={upload} uploading={uploading} />
+          <UploadForm onUpload={upload} uploading={uploading} maxUploadBytes={limits?.max_upload_bytes} />
         </div>
       ) : (
         collection && (

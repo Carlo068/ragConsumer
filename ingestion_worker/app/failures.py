@@ -18,6 +18,10 @@ class IndexOutdated(Exception):
     this worker uses, so adding to it would corrupt it."""
 
 
+class DocumentDeleted(Exception):
+    """The document was deleted while it was being indexed: stop and clean up."""
+
+
 class OcrFailed(Exception):
     """Text recognition could not process the file (or ran out of time)."""
 

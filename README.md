@@ -114,7 +114,8 @@ Uploaded documents are stored on the server. **Searching is different:** when a
 lawyer uses an AI assistant, the passages it finds are sent to that assistant's
 provider (Anthropic, OpenAI, ...) under the lawyer's own account with them. That is
 a property of using any hosted AI assistant, not of this system, and the firm's
-policies need to cover it.
+policies need to cover it. Read `docs/aviso-de-confidencialidad.md` (in Spanish) before the
+pilot starts; lawyers get a plain-language guide in `docs/guia-de-usuario.md`.
 
 ## Repository conventions
 

@@ -23,14 +23,14 @@ export function InvitePage() {
     <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>{t("invite.title")}</CardTitle>
+          <CardTitle>{t(invite?.kind === "reset" ? "invite.resetTitle" : "invite.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && <p className="text-sm">{t("invite.checking")}</p>}
           {invalid && (
             <p className="text-sm">{t("invite.invalid")}</p>
           )}
-          {invite && <AcceptInviteForm email={invite.email} onSubmit={handleAccept} />}
+          {invite && <AcceptInviteForm email={invite.email} kind={invite.kind} onSubmit={handleAccept} />}
         </CardContent>
       </Card>
       <LanguageSwitcher />

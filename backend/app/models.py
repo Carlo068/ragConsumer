@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Enum as SqlEnum, ForeignKey, String, false
+from sqlalchemy import JSON, Enum as SqlEnum, ForeignKey, String, false, true
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -22,11 +22,32 @@ class User(Base):
     # matter: an admin sees a collection only by being a member of it, so
     # ethical walls between matters hold even for the person running the firm.
     is_admin: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # False means the person can no longer sign in, and neither can their AI
+    # access keys. Set by an administrator when someone leaves the firm.
+    is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     collection_links: Mapped[list["CollectionMember"]] = relationship(
         back_populates="user", passive_deletes=True
     )
+
+
+class UserSession(Base):
+    """One sign-in. The browser's cookie only carries this row's id, so a session
+    can be ended on the server (sign out, an administrator disabling the
+    account, a password change) and a copied cookie stops working at once."""
+
+    __tablename__ = "user_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    ended_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
 
 
 class Invite(Base):
@@ -47,6 +68,9 @@ class Invite(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     expires_at: Mapped[datetime]
     accepted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # "invite": creates a new account. "reset": sets a new password on an
+    # existing account (issued by an administrator when someone is locked out).
+    kind: Mapped[str] = mapped_column(String(16), default="invite", server_default="invite")
 
 
 class Collection(Base):

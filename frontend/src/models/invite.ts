@@ -3,6 +3,8 @@ export interface Invite {
   email: string
   created_at: string
   expires_at: string
+  // "invite" creates an account; "reset" sets a new password on an existing one.
+  kind: "invite" | "reset"
 }
 
 // Only returned at creation: the server stores just a hash of the token, so
@@ -13,6 +15,7 @@ export interface InviteCreated extends Invite {
 
 export interface InviteInfo {
   email: string
+  kind: "invite" | "reset"
 }
 
 export interface CreateInviteRequest {

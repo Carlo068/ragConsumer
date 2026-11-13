@@ -6,4 +6,5 @@ export interface User {
 
 export interface AdminUser extends User {
   created_at: string
+  is_active: boolean
 }

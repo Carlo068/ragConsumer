@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     INVITE_TTL_HOURS: int = 72
     MIN_PASSWORD_LENGTH: int = 12
 
+    # Sign-in safety. A session ends after this long without use (and, whatever
+    # the activity, after SESSION_MAX_AGE_HOURS). Failed sign-ins are counted over
+    # a window: too many for one account, or from one address, pause sign-in.
+    SESSION_IDLE_MINUTES: int = 120
+    LOGIN_WINDOW_MINUTES: int = 15
+    LOGIN_MAX_FAILURES_PER_ACCOUNT: int = 10
+    LOGIN_MAX_FAILURES_PER_IP: int = 30
+    INVITE_MAX_REQUESTS_PER_IP: int = 30
+
     # MCP personal access tokens
     TOKEN_TTL_DAYS: int = 90
     MAX_ACTIVE_TOKENS_PER_USER: int = 10

@@ -59,7 +59,7 @@ def test_invite_lookup_shows_the_invited_email(admin_client):
     with TestClient(app) as invitee:
         response = invitee.get(f"/invites/{token}")
     assert response.status_code == 200
-    assert response.json() == {"email": "nuevo@firm.mx"}
+    assert response.json() == {"email": "nuevo@firm.mx", "kind": "invite"}
 
 
 def test_accepting_creates_a_non_admin_user_and_logs_them_in(admin_client):

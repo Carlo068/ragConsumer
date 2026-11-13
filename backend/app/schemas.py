@@ -26,6 +26,12 @@ class UserOut(BaseModel):
 
 class AdminUserOut(UserOut):
     created_at: datetime
+    is_active: bool
+
+
+class ChangePassword(BaseModel):
+    current_password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+    new_password: str = Field(max_length=MAX_PASSWORD_LENGTH)
 
 
 class InviteCreate(BaseModel):
@@ -37,6 +43,7 @@ class InviteOut(BaseModel):
     email: EmailStr
     created_at: datetime
     expires_at: datetime
+    kind: str = "invite"  # "invite" (new account) or "reset" (new password)
 
     class Config:
         from_attributes = True
@@ -50,6 +57,7 @@ class InviteCreated(InviteOut):
 
 class InviteInfo(BaseModel):
     email: EmailStr
+    kind: str = "invite"
 
 
 class InviteAccept(BaseModel):

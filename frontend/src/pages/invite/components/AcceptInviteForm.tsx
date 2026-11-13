@@ -9,10 +9,13 @@ const MIN_PASSWORD_LENGTH = 12
 
 interface AcceptInviteFormProps {
   email: string
+  // "reset": the person already has an account and is choosing a new password.
+  kind?: "invite" | "reset"
   onSubmit: (password: string) => Promise<void>
 }
 
-export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
+export function AcceptInviteForm({ email, kind = "invite", onSubmit }: AcceptInviteFormProps) {
+  const isReset = kind === "reset"
   const { t, errorText } = useI18n()
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -34,7 +37,7 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
     try {
       await onSubmit(password)
     } catch (err) {
-      setError(errorText(err, "invite.failed"))
+      setError(errorText(err, isReset ? "invite.resetFailed" : "invite.failed"))
       setSubmitting(false)
     }
   }
@@ -42,9 +45,9 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <p className="text-sm">
-        {t("invite.invitedAsBefore")}
+        {t(isReset ? "invite.resetIntroBefore" : "invite.invitedAsBefore")}
         <strong>{email}</strong>
-        {t("invite.invitedAsAfter")}
+        {t(isReset ? "invite.resetIntroAfter" : "invite.invitedAsAfter")}
       </p>
       <div className="flex flex-col gap-2">
         <Label htmlFor="new-password">{t("invite.password")}</Label>
@@ -71,7 +74,9 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
       <Button type="submit" disabled={submitting}>
-        {submitting ? t("invite.submitting") : t("invite.submit")}
+        {submitting
+          ? t(isReset ? "invite.resetSubmitting" : "invite.submitting")
+          : t(isReset ? "invite.resetSubmit" : "invite.submit")}
       </Button>
     </form>
   )

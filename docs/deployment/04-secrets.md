@@ -72,10 +72,11 @@ suite (including the live Qdrant isolation check) passed afterwards.
 ### Not covered by the script
 
 - **People's passwords** are not here: they are stored only as argon2 hashes in the
-  database and each person changes theirs.
+  database. Each person changes theirs under "Mi cuenta y contraseña", and an
+  administrator can issue a reset link (`../account-security.md`).
 - **Personal MCP access tokens** (`rag_…`) belong to each user, who can revoke and
-  recreate them from the Connect page; an admin can disable an account to cut
-  access at once.
+  recreate them from the Connect page; an administrator can disable an account,
+  which ends its sessions and revokes its keys at once (`../account-security.md`).
 - **The SSH key** for `deploy` is replaced by editing
   `/home/deploy/.ssh/authorized_keys` (see `03-server-hardening.md`).
 - **The provider account password and API tokens** are managed at the provider,

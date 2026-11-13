@@ -60,3 +60,33 @@ describe("AcceptInviteForm", () => {
     expect(screen.queryByText("A user with this email already exists")).not.toBeInTheDocument()
   })
 })
+
+describe("AcceptInviteForm for a password reset", () => {
+  function setupReset() {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(<AcceptInviteForm email="ana@firm.mx" kind="reset" onSubmit={onSubmit} />)
+    return { onSubmit, user: userEvent.setup() }
+  }
+
+  it("talks about choosing a new password, not creating an account", () => {
+    setupReset()
+    expect(screen.getByText(/Choose a new password for/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Save password" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Create account" })).not.toBeInTheDocument()
+  })
+
+  it("still enforces the length and submits the new password", async () => {
+    const { onSubmit, user } = setupReset()
+    await user.type(screen.getByLabelText("Password"), "short")
+    await user.type(screen.getByLabelText("Repeat password"), "short")
+    await user.click(screen.getByRole("button", { name: "Save password" }))
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await user.clear(screen.getByLabelText("Password"))
+    await user.clear(screen.getByLabelText("Repeat password"))
+    await user.type(screen.getByLabelText("Password"), "a-long-passphrase")
+    await user.type(screen.getByLabelText("Repeat password"), "a-long-passphrase")
+    await user.click(screen.getByRole("button", { name: "Save password" }))
+    expect(onSubmit).toHaveBeenCalledWith("a-long-passphrase")
+  })
+})

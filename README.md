@@ -13,8 +13,9 @@ mixed with other matters'.
 - Each lawyer connects their own AI assistant with a personal access key and
   chooses, matter by matter, what that assistant may search. The assistant can only
   ever reach what that person is allowed to see **and** has switched on.
-- Accounts are **invite-only**. Every sign-in, upload, deletion, sharing change and
-  AI search is written to an append-only audit log.
+- Accounts are **invite-only**, and an administrator can disable a person (sessions end
+  and AI keys stop at once) or issue a password reset. Every sign-in, upload, deletion,
+  sharing change and AI search is written to an append-only audit log.
 - The web app is in Spanish by default, with an English switch.
 
 Intended for a single firm's pilot on its own cloud server. The first real users
@@ -107,6 +108,8 @@ Read `docs/deployment/` in order:
 5. `05-backups.md` encrypted nightly backups and how to restore
 6. `06-deploy-and-rollback.md` staging, releasing, rolling back
 7. `07-monitoring.md` alerts and log retention
+
+How sign-in, sessions, password resets and offboarding a person work: `docs/account-security.md`.
 
 ## Where documents go
 

@@ -21,6 +21,8 @@ def engine():
                 "expires_at TIMESTAMP, last_used_at TIMESTAMP, revoked_at TIMESTAMP)"
             )
         )
+        conn.execute(text("CREATE TABLE users (id TEXT PRIMARY KEY, is_active BOOLEAN NOT NULL)"))
+        conn.execute(text("INSERT INTO users (id, is_active) VALUES ('u1', 1)"))
     return engine
 
 
@@ -74,3 +76,27 @@ def test_a_rejected_token_is_not_stamped_as_used(engine):
     find_token_owner(engine, "rag_secret", now=NOW)
     with engine.connect() as conn:
         assert conn.execute(text("SELECT last_used_at FROM api_tokens")).scalar() is None
+
+
+def test_a_disabled_owner_loses_access_even_with_a_valid_token(engine):
+    add_token(engine)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE users SET is_active = 0 WHERE id = 'u1'"))
+    assert find_token_owner(engine, "rag_secret", now=NOW) is None
+
+
+def test_re_enabling_the_owner_restores_a_token_that_was_not_revoked(engine):
+    add_token(engine)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE users SET is_active = 0 WHERE id = 'u1'"))
+    assert find_token_owner(engine, "rag_secret", now=NOW) is None
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE users SET is_active = 1 WHERE id = 'u1'"))
+    assert find_token_owner(engine, "rag_secret", now=NOW) is not None
+
+
+def test_a_token_whose_owner_no_longer_exists_is_rejected(engine):
+    add_token(engine)
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM users"))
+    assert find_token_owner(engine, "rag_secret", now=NOW) is None

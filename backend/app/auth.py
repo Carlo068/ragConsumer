@@ -1,14 +1,16 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.errors import ApiError
-from app.models import ROLE_RANK, CollectionMember, CollectionRole, User
+from app.models import ROLE_RANK, CollectionMember, CollectionRole, User, UserSession
 
 _hasher = PasswordHasher()
 
@@ -30,16 +32,93 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def utcnow() -> datetime:
+    # Naive UTC, to match the timestamp-without-time-zone columns.
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+# last_seen_at is refreshed at most this often, so a busy page does not write
+# to the database on every request.
+_SEEN_REFRESH = timedelta(seconds=60)
+
+
+def start_session(db: Session, request: Request, user: User) -> UserSession:
+    """Signs `user` in: a new server-side session, and a cookie that carries only its id."""
+    request.session.clear()
+    now = utcnow()
+    row = UserSession(
+        user_id=user.id,
+        created_at=now,
+        last_seen_at=now,
+        ip=request.client.host if request.client else None,
+        user_agent=(request.headers.get("user-agent") or "")[:255] or None,
+    )
+    db.add(row)
+    db.flush()
+    request.session["sid"] = str(row.id)
+    return row
+
+
+def end_session(db: Session, request: Request) -> None:
+    sid = request.session.get("sid")
+    if sid:
+        try:
+            db.execute(
+                update(UserSession)
+                .where(UserSession.id == uuid.UUID(sid), UserSession.ended_at.is_(None))
+                .values(ended_at=utcnow())
+            )
+        except ValueError:
+            pass
+    request.session.clear()
+
+
+def end_user_sessions(db: Session, user_id: uuid.UUID, *, except_session: uuid.UUID | None = None) -> int:
+    """Ends every open session of a person (all their browsers). Returns how many."""
+    query = update(UserSession).where(UserSession.user_id == user_id, UserSession.ended_at.is_(None))
+    if except_session is not None:
+        query = query.where(UserSession.id != except_session)
+    return db.execute(query.values(ended_at=utcnow())).rowcount or 0
+
+
+def _reject(request: Request) -> ApiError:
+    request.session.clear()
+    return ApiError(status.HTTP_401_UNAUTHORIZED, "not_authenticated", "Not authenticated")
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    user_id = request.session.get("user_id")
-    if user_id is None:
-        raise ApiError(status.HTTP_401_UNAUTHORIZED, "not_authenticated", "Not authenticated")
+    """The signed-in person, or 401. The cookie is only a pointer to a server-side
+    session, so ending that session, disabling the account or a long idle time
+    all take effect on the very next request."""
+    sid = request.session.get("sid")
+    if not sid:
+        raise _reject(request)
+    try:
+        session_id = uuid.UUID(sid)
+    except ValueError:
+        raise _reject(request)
 
-    user = db.get(User, uuid.UUID(user_id))
-    if user is None:
-        request.session.clear()
-        raise ApiError(status.HTTP_401_UNAUTHORIZED, "not_authenticated", "Not authenticated")
+    row = db.get(UserSession, session_id)
+    now = utcnow()
+    if row is None:
+        raise _reject(request)
+    if row.ended_at is not None:
+        raise _reject(request)
+    if now - row.last_seen_at > timedelta(minutes=settings.SESSION_IDLE_MINUTES):
+        row.ended_at = now
+        db.commit()
+        raise _reject(request)
 
+    user = db.get(User, row.user_id)
+    if user is None or not user.is_active:
+        row.ended_at = now
+        db.commit()
+        raise _reject(request)
+
+    if now - row.last_seen_at > _SEEN_REFRESH:
+        row.last_seen_at = now
+        db.commit()
+    request.state.session_id = row.id
     return user
 
 

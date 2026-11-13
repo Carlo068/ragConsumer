@@ -43,6 +43,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   mcp_get_content: "AI read a passage",
   mcp_get_document: "AI read a document",
   mcp_list_documents: "AI listed files",
+  audit_viewed: "Activity log opened",
+  audit_exported: "Activity log downloaded",
 }
 
 export const auditActionLabel = (action: string) => AUDIT_ACTION_LABELS[action] ?? action

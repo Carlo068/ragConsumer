@@ -126,11 +126,20 @@ def list_audit(
     action: str | None = None,
     collection_id: uuid.UUID | None = None,
     actor: str | None = None,
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Newest first. Read-only: nothing in the app can change or remove entries."""
     filters = _audit_filters(action, collection_id, actor)
+    # Reading the log is itself recorded. Only the first page of a browse is
+    # logged, so paging through doesn't flood the log with its own reads.
+    if offset == 0:
+        audit.record(
+            db, audit.AUDIT_VIEWED, actor=admin,
+            detail={k: v for k, v in {"action": action, "actor": actor,
+                                      "collection_id": str(collection_id) if collection_id else None}.items() if v},
+        )
+        db.commit()
     total = db.scalar(select(func.count()).select_from(AuditLog).where(*filters))
     items = db.scalars(
         select(AuditLog)
@@ -158,10 +167,16 @@ def export_audit_csv(
     action: str | None = None,
     collection_id: uuid.UUID | None = None,
     actor: str | None = None,
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     filters = _audit_filters(action, collection_id, actor)
+    audit.record(
+        db, audit.AUDIT_EXPORTED, actor=admin,
+        detail={k: v for k, v in {"action": action, "actor": actor,
+                                  "collection_id": str(collection_id) if collection_id else None}.items() if v},
+    )
+    db.commit()
 
     def rows():
         buffer = io.StringIO()

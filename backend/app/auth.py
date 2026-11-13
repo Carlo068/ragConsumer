@@ -16,6 +16,12 @@ def hash_password(password: str) -> str:
     return _hasher.hash(password)
 
 
+# A real hash to verify against when the email is unknown, so a login for a
+# missing account costs the same time as one for an existing account and the
+# response time doesn't reveal which emails have accounts.
+DUMMY_PASSWORD_HASH = _hasher.hash("not-a-real-password")
+
+
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         return _hasher.verify(password_hash, password)

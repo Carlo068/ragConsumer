@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import audit
-from app.auth import get_current_user, verify_password
+from app.auth import DUMMY_PASSWORD_HASH, get_current_user, verify_password
 from app.db import get_db
 from app.models import User
 from app.schemas import LoginRequest, UserOut
@@ -16,7 +16,10 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     # Invites store emails lowercased, so match the same way: "Ana@Firm.mx"
     # and "ana@firm.mx" are the same account.
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
-    if user is None or not verify_password(payload.password, user.password_hash):
+    password_ok = verify_password(
+        payload.password, user.password_hash if user else DUMMY_PASSWORD_HASH
+    )
+    if user is None or not password_ok:
         # Failed attempts are logged too: repeated failures on one address are
         # how a guessing attack shows up. The password is never recorded.
         audit.record(db, audit.LOGIN_FAILED, target=payload.email.lower(), request=request)

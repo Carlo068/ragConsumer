@@ -6,9 +6,13 @@ from pydantic import BaseModel, EmailStr, Field
 from app.models import CollectionRole, DocumentStatus
 
 
+# Long enough for any passphrase; short enough that hashing it is not a DoS.
+MAX_PASSWORD_LENGTH = 256
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=MAX_PASSWORD_LENGTH)
 
 
 class UserOut(BaseModel):
@@ -49,7 +53,7 @@ class InviteInfo(BaseModel):
 
 
 class InviteAccept(BaseModel):
-    password: str
+    password: str = Field(max_length=MAX_PASSWORD_LENGTH)
 
 
 class CollectionOut(BaseModel):

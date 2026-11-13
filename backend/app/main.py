@@ -20,7 +20,8 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SESSION_SECRET,
     same_site="lax",
-    https_only=False,  # flip to True once served over HTTPS/Tailscale
+    https_only=settings.SESSION_HTTPS_ONLY,
+    max_age=settings.SESSION_MAX_AGE_HOURS * 3600,
 )
 
 app.add_middleware(

@@ -2,7 +2,7 @@ from qdrant_client import QdrantClient, models
 
 from app.config import settings
 
-qdrant_client = QdrantClient(url=settings.QDRANT_URL)
+qdrant_client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY or None)
 
 
 def matter_collection_name(collection_id: str) -> str:

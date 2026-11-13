@@ -3,6 +3,7 @@
 
 import hashlib
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -19,7 +20,7 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def find_token_owner(engine: Engine, token: str) -> TokenOwner | None:
+def find_token_owner(engine: Engine, token: str, now: datetime | None = None) -> TokenOwner | None:
     """The user a valid token belongs to, or None.
 
     Valid means: known, not revoked, not expired. Every failure looks the same
@@ -28,19 +29,20 @@ def find_token_owner(engine: Engine, token: str) -> TokenOwner | None:
     """
     if not token:
         return None
+    # Naive UTC, matching the timestamp-without-time-zone columns.
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     with engine.begin() as conn:
         row = conn.execute(
             text(
                 "SELECT id, user_id FROM api_tokens "
-                "WHERE token_hash = :h AND revoked_at IS NULL "
-                "AND expires_at > (now() AT TIME ZONE 'utc')"
+                "WHERE token_hash = :h AND revoked_at IS NULL AND expires_at > :now"
             ),
-            {"h": hash_token(token)},
+            {"h": hash_token(token), "now": now},
         ).first()
         if row is None:
             return None
         conn.execute(
-            text("UPDATE api_tokens SET last_used_at = (now() AT TIME ZONE 'utc') WHERE id = :id"),
-            {"id": row[0]},
+            text("UPDATE api_tokens SET last_used_at = :now WHERE id = :id"),
+            {"now": now, "id": row[0]},
         )
     return TokenOwner(user_id=str(row[1]), token_id=str(row[0]))

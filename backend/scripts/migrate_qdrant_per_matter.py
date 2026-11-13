@@ -46,7 +46,7 @@ def main() -> int:
     parser.add_argument("--drop-old", action="store_true", help="delete 'chunks' after a verified copy")
     args = parser.parse_args()
 
-    client = QdrantClient(url=settings.QDRANT_URL)
+    client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY or None)
     if not client.collection_exists(OLD_COLLECTION):
         print(f"No '{OLD_COLLECTION}' collection: nothing to migrate.")
         return 0

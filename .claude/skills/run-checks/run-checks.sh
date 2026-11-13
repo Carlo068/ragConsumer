@@ -30,11 +30,19 @@ backend_tests() {
   [[ -f .venv/Scripts/activate ]] || { echo "backend/.venv missing -- create it and pip install -r requirements.txt"; return 1; }
   source .venv/Scripts/activate && python -m pytest -q ${PYTEST_ARGS:-}
 }
+# mcp_server has no host virtualenv (its embedding models are heavy), so its
+# tests run in its own image with the tests mounted in and pytest installed.
+mcp_tests() {
+  cd "$ROOT" || return 1
+  local w; w="$(pwd -W 2>/dev/null || pwd)"
+  MSYS_NO_PATHCONV=1 docker compose run --rm --no-deps     -v "$w/mcp_server/__tests__:/app/__tests__" -v "$w/mcp_server/pytest.ini:/app/pytest.ini"     --entrypoint sh mcp_server -c "pip install -q pytest >/dev/null 2>&1; python -m pytest -q"
+}
 frontend_typecheck() { cd "$ROOT/frontend" && npx tsc -b; }
 frontend_tests()     { cd "$ROOT/frontend" && npx vitest run; }
 frontend_lint()      { cd "$ROOT/frontend" && npx oxlint; }   # warnings don't fail; errors do
 
 run "backend pytest"      backend_tests
+run "mcp_server pytest"    mcp_tests
 run "frontend tsc"        frontend_typecheck
 run "frontend vitest"     frontend_tests
 run "frontend oxlint"     frontend_lint

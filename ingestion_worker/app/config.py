@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "documents"
 
     QDRANT_URL: str = "http://127.0.0.1:6333"
+    # Empty = no auth (plain local Qdrant). Always set in compose.
+    QDRANT_API_KEY: str = ""
 
 
 settings = Settings()

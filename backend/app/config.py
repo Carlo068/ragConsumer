@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "documents"
 
     QDRANT_URL: str = "http://127.0.0.1:6333"
+    # Empty = no auth (plain local Qdrant). Always set in compose.
+    QDRANT_API_KEY: str = ""
 
     MAX_UPLOAD_SIZE_BYTES: int = 2 * 1024 * 1024
 

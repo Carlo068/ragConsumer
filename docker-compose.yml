@@ -51,13 +51,18 @@ services:
         exit 0
       "
 
+  # Internal only: no published ports, so nothing outside the Docker network
+  # can reach it. Every request needs the API key, and JWT mode lets the MCP
+  # server present short-lived read-only tokens limited to a person's own
+  # matters (one Qdrant collection per matter). The dev default key must be
+  # replaced in production (KAN-73).
   qdrant:
     image: qdrant/qdrant:v1.19
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
+      QDRANT__SERVICE__JWT_RBAC: "true"
     volumes:
       - qdrant_data:/qdrant/storage
-    ports:
-      - "6333:6333"
-      - "6334:6334"
 
   backend:
     build: ./backend
@@ -70,6 +75,7 @@ services:
       MINIO_SECURE: "False"
       MINIO_BUCKET: documents
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +96,7 @@ services:
       MINIO_SECURE: "False"
       MINIO_BUCKET: documents
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,18 +105,17 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
 
-  # One shared MCP server, always on the same URL. Which collection it
-  # exposes is not fixed at startup -- it's read fresh from the
-  # mcp_active_collection row on every tool call, toggled from the
-  # frontend's Connect page. Only one collection can be active at a time.
-  # Still never a tool argument: an MCP client can query whatever is
-  # currently active, but can't change it -- only the authenticated web app
-  # can (via PUT /mcp/active-collection, gated by collection membership).
+  # One shared MCP server, always on the same URL. Every request must carry a
+  # personal access key; the key identifies the person, and the server only
+  # searches the matters that person turned on for their AI and still belongs
+  # to. Matters are never a tool argument. Its Qdrant access is a short-lived
+  # read-only token limited to those matters' collections.
   mcp_server:
     build: ./mcp_server
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
     depends_on:
       postgres:
         condition: service_healthy

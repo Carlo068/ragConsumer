@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.config import settings
 from app.db import get_db
@@ -56,6 +57,10 @@ async def upload_document(
         object_key=object_key,
     )
     db.add(document)
+    audit.record(
+        db, audit.DOCUMENT_UPLOADED, actor=current_user, collection_id=collection_id,
+        target=file.filename, detail={"document_id": str(doc_id), "bytes": len(contents)},
+    )
     db.commit()
     db.refresh(document)
     return document
@@ -99,5 +104,9 @@ def delete_document(
     delete_document_chunks(str(collection_id), str(document_id))
     delete_object(document.object_key)
 
+    audit.record(
+        db, audit.DOCUMENT_DELETED, actor=current_user, collection_id=collection_id,
+        target=document.source_filename, detail={"document_id": str(document_id)},
+    )
     db.delete(document)
     db.commit()

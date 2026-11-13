@@ -2,7 +2,8 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Enum as SqlEnum, ForeignKey, String, false
+from sqlalchemy import JSON, Enum as SqlEnum, ForeignKey, String, false
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -171,3 +172,27 @@ class ApiToken(Base):
     expires_at: Mapped[datetime]
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+
+class AuditLog(Base):
+    """Who did what to which matter, and when. Append-only: the application
+    only ever inserts, and in Postgres a trigger rejects any UPDATE or DELETE.
+
+    Deliberately no foreign keys. An entry has to stay true after the user or
+    matter it names is deleted, so names are copied in and the ids are plain
+    values."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    occurred_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
+    actor_user_id: Mapped[uuid.UUID | None]
+    actor_email: Mapped[str | None] = mapped_column(String(255))
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    collection_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    collection_name: Mapped[str | None] = mapped_column(String(255))
+    # What the action was about: a filename, an email address, a token name.
+    target: Mapped[str | None] = mapped_column(String(1024))
+    # Extra structured facts, e.g. an AI search's query and returned chunk ids.
+    detail: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    ip: Mapped[str | None] = mapped_column(String(64))

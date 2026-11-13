@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.auth import hash_password
 from app.config import settings
 from app.db import get_db
@@ -49,7 +50,9 @@ def accept_invite(
 
     user = User(email=invite.email, password_hash=hash_password(payload.password))
     db.add(user)
+    db.flush()  # assigns user.id for the audit entry
     invite.accepted_at = utcnow()
+    audit.record(db, audit.INVITE_ACCEPTED, actor=user, target=user.email, request=request)
     db.commit()
     db.refresh(user)
 

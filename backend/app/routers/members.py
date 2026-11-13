@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
 from app.models import AiMatterSelection, CollectionMember, CollectionRole, User
@@ -86,6 +87,10 @@ def add_member(
 
     member = CollectionMember(user_id=user.id, collection_id=collection_id, role=payload.role)
     db.add(member)
+    audit.record(
+        db, audit.MEMBER_ADDED, actor=current_user, collection_id=collection_id,
+        target=user.email, detail={"role": payload.role.value},
+    )
     db.commit()
     return _out(member, user)
 
@@ -105,9 +110,15 @@ def change_member_role(
     if demoting_an_owner and _owner_count(db, collection_id) <= 1:
         raise HTTPException(status.HTTP_409_CONFLICT, LAST_OWNER)
 
+    previous_role = member.role
     member.role = payload.role
+    target = db.get(User, user_id)
+    audit.record(
+        db, audit.MEMBER_ROLE_CHANGED, actor=current_user, collection_id=collection_id,
+        target=target.email, detail={"role": payload.role.value, "previous_role": previous_role.value},
+    )
     db.commit()
-    return _out(member, db.get(User, user_id))
+    return _out(member, target)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -131,6 +142,11 @@ def remove_member(
     if member.role == CollectionRole.owner and _owner_count(db, collection_id) <= 1:
         raise HTTPException(status.HTTP_409_CONFLICT, LAST_OWNER)
 
+    removed = db.get(User, user_id)
+    audit.record(
+        db, audit.MEMBER_REMOVED, actor=current_user, collection_id=collection_id,
+        target=removed.email if removed else None, detail={"role": member.role.value},
+    )
     db.delete(member)
     # Tidy up their AI selection too. Not what protects the matter (the MCP
     # server re-checks membership on every call) but stale rows would

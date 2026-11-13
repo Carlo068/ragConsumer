@@ -2,6 +2,7 @@ from fastembed import SparseTextEmbedding, TextEmbedding
 from qdrant_client import QdrantClient, models
 from sqlalchemy import bindparam, create_engine, text
 
+from app import audit
 from app.config import settings
 from app.qdrant_access import scoped_client
 
@@ -65,9 +66,16 @@ def _open_matters(matters: dict[str, str]) -> tuple[QdrantClient, dict[str, str]
     return client, {n: m for n, m in names.items() if client.collection_exists(n)}
 
 
+def _matter_id(collection_name: str) -> str:
+    return collection_name.removeprefix("matter_")
+
+
 def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
     matters = get_allowed_matters(user_id)
     if not matters:
+        audit.record(
+            _engine, user_id, audit.MCP_SEARCH, detail={"query": query, "matters_searched": 0}
+        )
         return [{"message": NO_MATTERS_MESSAGE}]
 
     dense_vec = list(_dense_model.embed([query]))[0]
@@ -93,11 +101,22 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
             limit=limit,
             with_payload=True,
         )
-        hits.extend((point, matter_name) for point in results.points)
+        hits.extend((point, collection_name, matter_name) for point in results.points)
 
     # Each matter was ranked on its own; interleave by fused score and keep the
     # best few overall.
     hits.sort(key=lambda hit: hit[0].score, reverse=True)
+    top = hits[:limit]
+
+    # One entry per matter searched, so "who searched matter X" is complete even
+    # when nothing came back. Written before anything is returned.
+    for matter_id, matter_name in matters.items():
+        returned = [str(p.id) for p, cname, _ in top if _matter_id(cname) == matter_id]
+        audit.record(
+            _engine, user_id, audit.MCP_SEARCH, matter_id=matter_id, matter_name=matter_name,
+            detail={"query": query, "chunk_ids": returned},
+        )
+
     return [
         {
             "chunk_id": str(point.id),
@@ -106,35 +125,44 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
             "source_filename": point.payload["source_filename"],
             "text": point.payload["text"],
         }
-        for point, matter_name in hits[:limit]
+        for point, _, matter_name in top
     ]
 
 
 def get_content(user_id: str, chunk_id: str) -> str | None:
     matters = get_allowed_matters(user_id)
     if not matters:
+        audit.record(_engine, user_id, audit.MCP_GET_CONTENT, target=chunk_id,
+                     detail={"matters_searched": 0})
         return NO_MATTERS_MESSAGE
 
     # The chunk's matter isn't known up front, so look in each matter this
     # person's AI can reach. A chunk elsewhere is never looked at, and so is
     # indistinguishable from one that doesn't exist.
     client, collections = _open_matters(matters)
-    for collection_name in collections:
+    for collection_name, matter_name in collections.items():
         points = client.retrieve(
             collection_name=collection_name, ids=[chunk_id], with_payload=True
         )
         if points:
+            audit.record(
+                _engine, user_id, audit.MCP_GET_CONTENT, matter_id=_matter_id(collection_name),
+                matter_name=matter_name, target=chunk_id,
+            )
             return points[0].payload["text"]
+    audit.record(_engine, user_id, audit.MCP_GET_CONTENT, target=chunk_id, detail={"found": False})
     return None
 
 
 def get_document(user_id: str, doc_id: str) -> str | None:
     matters = get_allowed_matters(user_id)
     if not matters:
+        audit.record(_engine, user_id, audit.MCP_GET_DOCUMENT, target=doc_id,
+                     detail={"matters_searched": 0})
         return NO_MATTERS_MESSAGE
 
     client, collections = _open_matters(matters)
-    for collection_name in collections:
+    for collection_name, matter_name in collections.items():
         points, _ = client.scroll(
             collection_name=collection_name,
             scroll_filter=models.Filter(
@@ -144,14 +172,20 @@ def get_document(user_id: str, doc_id: str) -> str | None:
             limit=1000,
         )
         if points:
+            audit.record(
+                _engine, user_id, audit.MCP_GET_DOCUMENT, matter_id=_matter_id(collection_name),
+                matter_name=matter_name, target=doc_id, detail={"chunks": len(points)},
+            )
             points.sort(key=lambda p: p.payload["chunk_index"])
             return "\n\n".join(p.payload["text"] for p in points)
+    audit.record(_engine, user_id, audit.MCP_GET_DOCUMENT, target=doc_id, detail={"found": False})
     return None
 
 
 def list_documents(user_id: str) -> list[dict]:
     matters = get_allowed_matters(user_id)
     if not matters:
+        audit.record(_engine, user_id, audit.MCP_LIST_DOCUMENTS, detail={"matters_searched": 0})
         return [{"message": NO_MATTERS_MESSAGE}]
 
     with _engine.connect() as conn:
@@ -162,6 +196,14 @@ def list_documents(user_id: str) -> list[dict]:
             ).bindparams(bindparam("ids", expanding=True)),
             {"ids": list(matters)},
         ).mappings().all()
+
+    for matter_id, matter_name in matters.items():
+        count = sum(1 for row in rows if str(row["collection_id"]) == matter_id)
+        audit.record(
+            _engine, user_id, audit.MCP_LIST_DOCUMENTS, matter_id=matter_id,
+            matter_name=matter_name, detail={"documents": count},
+        )
+
     return [
         {
             "id": str(row["id"]),

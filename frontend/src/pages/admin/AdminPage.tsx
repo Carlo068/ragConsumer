@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { useAdmin } from "@/hooks/useAdmin"
+import { useAuditLog } from "@/hooks/useAuditLog"
+import { AuditLogPanel } from "./components/AuditLogPanel"
 import { InviteUserForm } from "./components/InviteUserForm"
 
 export function AdminPage() {
   const { users, invites, loading, error, createInvite, revokeInvite } = useAdmin()
+  const audit = useAuditLog()
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
@@ -75,6 +78,20 @@ export function AdminPage() {
           ))}
         </CardContent>
       </Card>
+
+      <AuditLogPanel
+        items={audit.items}
+        total={audit.total}
+        filters={audit.filters}
+        loading={audit.loading}
+        error={audit.error}
+        hasNext={audit.hasNext}
+        hasPrevious={audit.hasPrevious}
+        csvUrl={audit.csvUrl}
+        onFilter={audit.applyFilters}
+        onNext={audit.nextPage}
+        onPrevious={audit.previousPage}
+      />
     </div>
   )
 }

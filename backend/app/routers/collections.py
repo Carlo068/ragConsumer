@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
 from app.models import (
@@ -58,6 +59,10 @@ def create_collection(
             user_id=current_user.id, collection_id=collection.id, role=CollectionRole.owner
         )
     )
+    audit.record(
+        db, audit.MATTER_CREATED, actor=current_user,
+        collection_id=collection.id, collection_name=collection.name,
+    )
     db.commit()
     db.refresh(collection)
     return CollectionOut(
@@ -78,7 +83,13 @@ def rename_collection(
     if collection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
 
+    previous_name = collection.name
     collection.name = payload.name
+    audit.record(
+        db, audit.MATTER_RENAMED, actor=current_user,
+        collection_id=collection.id, collection_name=payload.name,
+        detail={"previous_name": previous_name},
+    )
     db.commit()
     db.refresh(collection)
     ai_enabled = db.get(AiMatterSelection, (current_user.id, collection_id)) is not None
@@ -106,5 +117,9 @@ def delete_collection(
     delete_matter_vectors(str(collection_id))
     delete_objects_by_prefix(f"collection-{collection_id}/")
 
+    audit.record(
+        db, audit.MATTER_DELETED, actor=current_user,
+        collection_id=collection.id, collection_name=collection.name,
+    )
     db.delete(collection)  # cascades collection_members + documents rows
     db.commit()

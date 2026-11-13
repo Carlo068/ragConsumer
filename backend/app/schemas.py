@@ -118,3 +118,23 @@ class DocumentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AuditEntryOut(BaseModel):
+    id: uuid.UUID
+    occurred_at: datetime
+    actor_email: str | None
+    action: str
+    collection_id: uuid.UUID | None
+    collection_name: str | None
+    target: str | None
+    detail: dict | None
+    ip: str | None
+
+    class Config:
+        from_attributes = True
+
+
+class AuditPage(BaseModel):
+    items: list[AuditEntryOut]
+    total: int

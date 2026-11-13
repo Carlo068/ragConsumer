@@ -71,6 +71,21 @@ class CollectionUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
 
 
+class MemberOut(BaseModel):
+    user_id: uuid.UUID
+    email: EmailStr
+    role: CollectionRole
+
+
+class MemberAdd(BaseModel):
+    email: EmailStr
+    role: CollectionRole
+
+
+class MemberRoleUpdate(BaseModel):
+    role: CollectionRole
+
+
 class McpActiveCollectionOut(BaseModel):
     collection_id: uuid.UUID | None
     collection_name: str | None

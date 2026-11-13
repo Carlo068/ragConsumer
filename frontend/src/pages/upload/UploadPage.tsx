@@ -1,9 +1,12 @@
-import { Link, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { useCollections } from "@/hooks/useCollections"
+import { useAuth } from "@/hooks/useAuth"
 import { useDocuments } from "@/hooks/useDocuments"
-import { canEditFiles } from "@/models/collection"
+import { useMembers } from "@/hooks/useMembers"
+import { canEditFiles, canManageCollection } from "@/models/collection"
 import { DocumentList } from "./components/DocumentList"
+import { MembersPanel } from "./components/MembersPanel"
 import { UploadForm } from "./components/UploadForm"
 
 export function UploadPage() {
@@ -14,6 +17,9 @@ export function UploadPage() {
   )
 
   const collection = collections.find((c) => c.id === collectionId)
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { members, addMember, changeRole, removeMember } = useMembers(collectionId!)
 
   return (
     <div className="mx-auto max-w-2xl p-8">
@@ -50,6 +56,24 @@ export function UploadPage() {
         onDelete={remove}
         canDelete={canEditFiles(collection?.role)}
       />
+
+      {collection && user && (
+        <div className="mt-8">
+          <MembersPanel
+            members={members}
+            currentUserId={user.id}
+            canManage={canManageCollection(collection.role)}
+            onAdd={addMember}
+            onChangeRole={changeRole}
+            onRemove={async (userId) => {
+              await removeMember(userId)
+              // Leaving removes the collection from your list, so this page
+              // would only show errors from here on.
+              if (userId === user.id) navigate("/collections", { replace: true })
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

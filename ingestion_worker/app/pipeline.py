@@ -11,6 +11,7 @@ from qdrant_client import QdrantClient, models
 from sqlalchemy import create_engine, text
 
 from app.config import settings
+from app import formats
 from app.failures import NoTextFound, failure_reason
 from app.ocr import count_pdf_pages, needs_ocr, run_ocr
 
@@ -55,8 +56,21 @@ _header_splitter = MarkdownHeaderTextSplitter(
 _recursive_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
 
 
-def convert_to_markdown(path: str) -> str:
+def _markitdown(path: str) -> str:
     return _converter.convert(path).text_content
+
+
+def convert_to_markdown(path: str) -> str:
+    """Convert a file to markdown. Formats MarkItDown does not handle (legacy
+    .doc, and email) have their own converters."""
+    extension = os.path.splitext(path)[1].lower()
+    if extension == ".eml":
+        return formats.eml_to_text(path, _markitdown)
+    if extension == ".msg":
+        return formats.msg_to_text(path, _markitdown)
+    if extension == ".doc":
+        return formats.doc_to_text(path)
+    return _markitdown(path)
 
 
 def convert_with_ocr(path: str) -> str:

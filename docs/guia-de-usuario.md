@@ -21,8 +21,13 @@ dicen mis documentos sobre el pago de la renta».
    **una sola vez** y vence a las **72 horas**. Si ya no funciona, pídale otro.
 2. Abra el enlace, elija una contraseña de **al menos 12 caracteres** y repítala. Una
    frase larga que usted recuerde es mejor que una palabra con números.
-3. Ya puede iniciar sesión con su correo y su contraseña. La sesión se cierra sola
-   después de 12 horas; solo vuelva a iniciarla.
+3. Ya puede iniciar sesión con su correo y su contraseña. Por seguridad, la sesión se
+   cierra sola después de **2 horas sin usarla** (y en todo caso a las 12 horas); solo
+   vuelva a iniciarla.
+4. Si **olvida su contraseña**, pida al administrador un enlace para restablecerla. Para
+   **cambiarla** cuando quiera, use el menú de sus iniciales (arriba a la derecha) y
+   **Mi cuenta y contraseña**: al cambiarla se cierra su sesión en los demás
+   dispositivos.
 
 Para salir use **Cerrar sesión**, sobre todo en una computadora compartida.
 
@@ -162,7 +167,9 @@ impedirlo. Por eso:
 
 | Qué ve | Qué hacer |
 |---|---|
-| «Su sesión terminó» | Inicie sesión de nuevo |
+| «Su sesión terminó» | Inicie sesión de nuevo (la sesión se cierra tras 2 horas sin uso) |
+| «Demasiados intentos. Espere 15 minutos…» | Se equivocó varias veces al iniciar sesión y se pausó por seguridad. Espere o pida al administrador un enlace para restablecer su contraseña |
+| No puede iniciar sesión con la contraseña correcta | Puede que su cuenta esté desactivada; consulte al administrador |
 | El enlace de invitación «no es válido o ya venció» | Pida otro al administrador |
 | «Ese asunto no existe o usted no tiene acceso a él» | Pida a un Responsable del asunto que lo agregue |
 | «Su función en este asunto no permite hacer eso» | Pida a un Responsable que le cambie la función |

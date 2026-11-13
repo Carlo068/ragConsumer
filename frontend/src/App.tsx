@@ -8,6 +8,7 @@ import { LoginPage } from "@/pages/login/LoginPage"
 import { CollectionsPage } from "@/pages/collections/CollectionsPage"
 import { UploadPage } from "@/pages/upload/UploadPage"
 import { ConnectPage } from "@/pages/connect/ConnectPage"
+import { AccountPage } from "@/pages/account/AccountPage"
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/collections" element={<CollectionsPage />} />
             <Route path="/collections/:collectionId/upload" element={<UploadPage />} />
             <Route path="/connect" element={<ConnectPage />} />
+            <Route path="/account" element={<AccountPage />} />
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<AdminPage />} />
             </Route>

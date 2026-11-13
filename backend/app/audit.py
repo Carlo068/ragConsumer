@@ -15,6 +15,14 @@ from app.models import AuditLog, Collection, User
 # Action names, kept in one place so the admin view can offer them as filters.
 LOGIN = "login"
 LOGIN_FAILED = "login_failed"
+LOGIN_THROTTLED = "login_throttled"
+LOGOUT = "logout"
+PASSWORD_CHANGED = "password_changed"
+PASSWORD_RESET_CREATED = "password_reset_created"
+PASSWORD_RESET_COMPLETED = "password_reset_completed"
+USER_DISABLED = "user_disabled"
+USER_ENABLED = "user_enabled"
+SESSIONS_ENDED = "sessions_ended"
 INVITE_CREATED = "invite_created"
 INVITE_REVOKED = "invite_revoked"
 INVITE_ACCEPTED = "invite_accepted"
@@ -40,7 +48,8 @@ AUDIT_VIEWED = "audit_viewed"
 AUDIT_EXPORTED = "audit_exported"
 
 ALL_ACTIONS = [
-    LOGIN, LOGIN_FAILED, INVITE_CREATED, INVITE_REVOKED, INVITE_ACCEPTED,
+    LOGIN, LOGIN_FAILED, LOGIN_THROTTLED, LOGOUT, PASSWORD_CHANGED, PASSWORD_RESET_CREATED,
+    PASSWORD_RESET_COMPLETED, USER_DISABLED, USER_ENABLED, SESSIONS_ENDED, INVITE_CREATED, INVITE_REVOKED, INVITE_ACCEPTED,
     MATTER_CREATED, MATTER_RENAMED, MATTER_DELETED,
     MEMBER_ADDED, MEMBER_ROLE_CHANGED, MEMBER_REMOVED,
     DOCUMENT_UPLOADED, DOCUMENT_DELETED, DOCUMENT_REINGESTED, TOKEN_CREATED, TOKEN_REVOKED,

@@ -8,15 +8,15 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app import audit
-from app.auth import require_admin
+from app.auth import end_user_sessions, require_admin
 from app.config import settings
 from app.db import get_db
 from app.errors import ApiError
-from app.models import AuditLog, Invite, User
+from app.models import ApiToken, AuditLog, Invite, User
 from app.schemas import (
     AdminUserOut,
     AuditEntryOut,
@@ -44,6 +44,105 @@ def list_users(
     db: Session = Depends(get_db),
 ):
     return db.scalars(select(User).order_by(User.email)).all()
+
+
+def _get_user(db: Session, user_id: uuid.UUID) -> User:
+    user = db.get(User, user_id)
+    if user is None:
+        raise ApiError(status.HTTP_404_NOT_FOUND, "user_not_found", "User not found")
+    return user
+
+
+@router.post("/users/{user_id}/disable", response_model=AdminUserOut)
+def disable_user(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """For when someone leaves the firm. Takes effect immediately: every open
+    session ends and every AI access key stops working. Their matters, uploads and
+    history stay as they are; the account can be enabled again later (with new
+    keys, since the old ones are revoked)."""
+    user = _get_user(db, user_id)
+    if user.id == admin.id:
+        # Also guarantees the firm can never be left with no active administrator.
+        raise ApiError(status.HTTP_409_CONFLICT, "cannot_disable_self", "You cannot disable your own account")
+    user.is_active = False
+    sessions_ended = end_user_sessions(db, user.id)
+    tokens_revoked = db.execute(
+        update(ApiToken)
+        .where(ApiToken.user_id == user.id, ApiToken.revoked_at.is_(None))
+        .values(revoked_at=utcnow())
+    ).rowcount or 0
+    audit.record(
+        db, audit.USER_DISABLED, actor=admin, target=user.email,
+        detail={"sessions_ended": sessions_ended, "tokens_revoked": tokens_revoked},
+    )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/users/{user_id}/enable", response_model=AdminUserOut)
+def enable_user(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = _get_user(db, user_id)
+    user.is_active = True
+    audit.record(db, audit.USER_ENABLED, actor=admin, target=user.email)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/users/{user_id}/end-sessions", status_code=status.HTTP_204_NO_CONTENT)
+def end_sessions(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Signs the person out everywhere (a lost laptop, a shared computer)."""
+    user = _get_user(db, user_id)
+    ended = end_user_sessions(db, user.id)
+    audit.record(db, audit.SESSIONS_ENDED, actor=admin, target=user.email, detail={"sessions_ended": ended})
+    db.commit()
+
+
+@router.post("/users/{user_id}/password-reset", response_model=InviteCreated, status_code=status.HTTP_201_CREATED)
+def create_password_reset(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """A one-use link, like an invitation, that lets the person choose a new
+    password. The administrator never sees or sets anyone's password."""
+    user = _get_user(db, user_id)
+    if not user.is_active:
+        raise ApiError(status.HTTP_409_CONFLICT, "user_disabled", "This account is disabled")
+
+    db.execute(delete(Invite).where(Invite.email == user.email, Invite.accepted_at.is_(None)))
+    token = secrets.token_urlsafe(32)
+    invite = Invite(
+        email=user.email,
+        token_hash=hash_invite_token(token),
+        invited_by=admin.id,
+        expires_at=utcnow() + timedelta(hours=settings.INVITE_TTL_HOURS),
+        kind="reset",
+    )
+    db.add(invite)
+    audit.record(db, audit.PASSWORD_RESET_CREATED, actor=admin, target=user.email)
+    db.commit()
+    db.refresh(invite)
+    return InviteCreated(
+        id=invite.id,
+        email=invite.email,
+        created_at=invite.created_at,
+        expires_at=invite.expires_at,
+        kind=invite.kind,
+        invite_url=f"{settings.FRONTEND_URL}/invite/{token}",
+    )
 
 
 @router.get("/invites", response_model=list[InviteOut])

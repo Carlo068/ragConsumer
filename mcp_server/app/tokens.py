@@ -23,7 +23,8 @@ def hash_token(token: str) -> str:
 def find_token_owner(engine: Engine, token: str, now: datetime | None = None) -> TokenOwner | None:
     """The user a valid token belongs to, or None.
 
-    Valid means: known, not revoked, not expired. Every failure looks the same
+    Valid means: known, not revoked, not expired, and its owner's account is
+    active. Every failure looks the same
     to the caller, so a probe can't tell "revoked" from "never existed". Stamps
     last_used_at so people can see which tokens are still in use.
     """
@@ -35,7 +36,10 @@ def find_token_owner(engine: Engine, token: str, now: datetime | None = None) ->
         row = conn.execute(
             text(
                 "SELECT id, user_id FROM api_tokens "
-                "WHERE token_hash = :h AND revoked_at IS NULL AND expires_at > :now"
+                "WHERE token_hash = :h AND revoked_at IS NULL AND expires_at > :now "
+                # A person an administrator has disabled loses AI access at once,
+                # even for a key that was somehow not revoked.
+                "AND user_id IN (SELECT id FROM users WHERE is_active)"
             ),
             {"h": hash_token(token), "now": now},
         ).first()

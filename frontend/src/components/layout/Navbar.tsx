@@ -1,4 +1,4 @@
-import { Link, NavLink } from "react-router-dom"
+import { Link, NavLink, useNavigate } from "react-router-dom"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ function getInitials(email: string): string {
 export function Navbar() {
   const { user, logout } = useAuth()
   const { t } = useI18n()
+  const navigate = useNavigate()
   if (!user) return null
 
   // The places people actually go, always in view (not hidden in a menu).
@@ -59,6 +60,9 @@ export function Navbar() {
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => navigate("/account")}>
+              {t("nav.account")}
+            </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onClick={() => logout()}>
               {t("nav.signOut")}
             </DropdownMenuItem>

@@ -14,8 +14,8 @@ from fastapi.responses import JSONResponse
 
 
 class ApiError(HTTPException):
-    def __init__(self, status_code: int, code: str, message: str, **params):
-        super().__init__(status_code, message)
+    def __init__(self, status_code: int, code: str, message: str, *, headers: dict | None = None, **params):
+        super().__init__(status_code, message, headers=headers)
         self.code = code
         self.params = params
 

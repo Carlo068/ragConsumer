@@ -17,6 +17,11 @@ export const adminService = {
   createInvite: (payload: CreateInviteRequest) =>
     apiClient.post<InviteCreated>("/admin/invites", payload),
   revokeInvite: (id: string) => apiClient.delete(`/admin/invites/${id}`),
+  disableUser: (id: string) => apiClient.post<AdminUser>(`/admin/users/${id}/disable`),
+  enableUser: (id: string) => apiClient.post<AdminUser>(`/admin/users/${id}/enable`),
+  endSessions: (id: string) => apiClient.post<void>(`/admin/users/${id}/end-sessions`),
+  createPasswordReset: (id: string) =>
+    apiClient.post<InviteCreated>(`/admin/users/${id}/password-reset`),
   listAudit: (filters: AuditFilters, limit: number, offset: number) =>
     apiClient.get<AuditPage>(
       `/admin/audit${auditQuery(filters, { limit: String(limit), offset: String(offset) })}`

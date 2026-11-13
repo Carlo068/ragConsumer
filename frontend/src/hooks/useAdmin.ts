@@ -42,5 +42,36 @@ export function useAdmin() {
     await refresh()
   }
 
-  return { users, invites, loading, error, createInvite, revokeInvite }
+  async function disableUser(id: string) {
+    await adminService.disableUser(id)
+    await refresh()
+  }
+
+  async function enableUser(id: string) {
+    await adminService.enableUser(id)
+    await refresh()
+  }
+
+  async function endSessions(id: string) {
+    await adminService.endSessions(id)
+  }
+
+  async function createPasswordReset(id: string): Promise<InviteCreated> {
+    const created = await adminService.createPasswordReset(id)
+    await refresh()
+    return created
+  }
+
+  return {
+    users,
+    invites,
+    loading,
+    error,
+    createInvite,
+    revokeInvite,
+    disableUser,
+    enableUser,
+    endSessions,
+    createPasswordReset,
+  }
 }

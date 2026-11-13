@@ -1,6 +1,7 @@
 [
   "admin_required",
   "already_member",
+  "cannot_disable_self",
   "document_busy",
   "document_not_found",
   "email_taken",
@@ -17,5 +18,9 @@
   "password_too_short",
   "role_required",
   "token_not_found",
-  "too_many_tokens"
+  "too_many_attempts",
+  "too_many_tokens",
+  "user_disabled",
+  "user_not_found",
+  "wrong_password"
 ]

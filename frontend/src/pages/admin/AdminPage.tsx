@@ -1,16 +1,29 @@
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { useAdmin } from "@/hooks/useAdmin"
+import { useAuth } from "@/hooks/useAuth"
 import { useAuditLog } from "@/hooks/useAuditLog"
 import { useI18n } from "@/i18n/useI18n"
 import { AuditLogPanel } from "./components/AuditLogPanel"
 import { InviteUserForm } from "./components/InviteUserForm"
+import { PeopleList } from "./components/PeopleList"
 
 export function AdminPage() {
   const { t, formatDateTime } = useI18n()
-  const { users, invites, loading, error, createInvite, revokeInvite } = useAdmin()
+  const {
+    users,
+    invites,
+    loading,
+    error,
+    createInvite,
+    revokeInvite,
+    disableUser,
+    enableUser,
+    endSessions,
+    createPasswordReset,
+  } = useAdmin()
+  const { user: currentUser } = useAuth()
   const audit = useAuditLog()
 
   return (
@@ -45,7 +58,12 @@ export function AdminPage() {
           {invites.map((invite) => (
             <div key={invite.id} className="flex items-center justify-between gap-3 text-sm">
               <div>
-                <p>{invite.email}</p>
+                <p>
+                  {invite.email}
+                  {invite.kind === "reset" && (
+                    <span className="text-muted-foreground"> · {t("admin.pendingReset")}</span>
+                  )}
+                </p>
                 <p className="text-muted-foreground text-xs">
                   {t("admin.expires", { date: formatDateTime(invite.expires_at) })}
                 </p>
@@ -70,13 +88,15 @@ export function AdminPage() {
         <CardHeader>
           <CardTitle>{t("admin.peopleTitle")}</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {users.map((user) => (
-            <div key={user.id} className="flex items-center justify-between text-sm">
-              <span>{user.email}</span>
-              {user.is_admin && <Badge variant="secondary">{t("admin.administrator")}</Badge>}
-            </div>
-          ))}
+        <CardContent>
+          <PeopleList
+            users={users}
+            currentUserId={currentUser?.id ?? ""}
+            onDisable={disableUser}
+            onEnable={enableUser}
+            onEndSessions={endSessions}
+            onCreateReset={createPasswordReset}
+          />
         </CardContent>
       </Card>
 

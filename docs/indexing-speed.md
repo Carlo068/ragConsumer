@@ -16,7 +16,7 @@ Measured on a 12-vCPU machine (the largest numbers we have; expect the same or l
 | A 100-page text PDF (about 600 fragments) | about 3 minutes |
 | A dense 1,300-page PDF (3.2 MB, about 7,800 fragments) | about 35 minutes |
 | A 4,000-page, 10 MB PDF (about 30,000 fragments) | about 19 minutes to read, then about 2 hours to index |
-| Scanned pages (OCR) | add roughly a few seconds per page before indexing |
+| Scanned pages | need text recognition (OCR) first, which adds time per page; not measured for this table |
 
 Memory stays bounded whatever the size (about 2 GB peak); only time grows.
 

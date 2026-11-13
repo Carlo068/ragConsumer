@@ -17,20 +17,30 @@ from app.vectorstore import delete_document_chunks
 
 router = APIRouter(prefix="/collections", tags=["documents"])
 
-MAX_FILENAME_LENGTH = 255
+MAX_FILENAME_LENGTH = 400
+MAX_PATH_SEGMENTS = 12
 
 
 def safe_filename(raw: str | None) -> str:
-    """A filename that is safe to put in a storage key and show to people:
-    no directory part, no control characters, never empty, at most 255 long
-    (keeping the extension)."""
-    name = (raw or "").replace(chr(92), "/").rsplit("/", 1)[-1]
-    name = "".join(ch for ch in name if ch.isprintable()).strip().lstrip(".")
-    if not name:
+    """The name a file is stored and shown under: its name, keeping the folders
+    it came from ("contratos/2024/arrendamiento.pdf") so a lawyer can tell
+    apart files that share a name.
+
+    Every segment is cleaned: no control characters, no leading dots (so no
+    "." or ".." can climb out of the document's own folder in storage, and no
+    hidden files), no empty segments. Never empty; at most 12 folders deep and
+    400 characters long (keeping the extension)."""
+    segments = []
+    for segment in (raw or "").replace(chr(92), "/").split("/"):
+        segment = "".join(ch for ch in segment if ch.isprintable()).strip().lstrip(".").strip()
+        if segment:
+            segments.append(segment)
+    if not segments:
         raise ApiError(status.HTTP_400_BAD_REQUEST, "file_needs_name", "The file needs a name")
+    name = "/".join(segments[-MAX_PATH_SEGMENTS:])  # keep the file and its nearest folders
     if len(name) > MAX_FILENAME_LENGTH:
         stem, dot, extension = name.rpartition(".")
-        extension = (dot + extension) if dot and len(extension) <= 10 else ""
+        extension = (dot + extension) if dot and len(extension) <= 10 and "/" not in extension else ""
         name = name[: MAX_FILENAME_LENGTH - len(extension)] + extension
     return name
 

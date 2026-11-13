@@ -30,8 +30,7 @@ function renderPage(role: CollectionRole | null, name = "Smith v. Jones") {
     documents: [],
     loading: false,
     error: null,
-    uploading: false,
-    upload: vi.fn(),
+    refresh: vi.fn(),
     remove: vi.fn(),
     retry: vi.fn(),
   })
@@ -69,12 +68,12 @@ describe("UploadPage", () => {
 
   it("tells an editor how to add the first file when there are none", () => {
     renderPage("editor")
-    expect(screen.getByText(/Choose a file above and press "Upload"/)).toBeInTheDocument()
+    expect(screen.getByText(/Drag files or a folder into the box above/)).toBeInTheDocument()
   })
 
   it("tells a viewer the matter is empty without offering an upload", () => {
     renderPage("viewer")
     expect(screen.getByText("This collection has no files yet.")).toBeInTheDocument()
-    expect(screen.queryByText(/Choose a file above/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Drag files or a folder/)).not.toBeInTheDocument()
   })
 })

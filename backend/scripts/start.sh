@@ -1,8 +1,5 @@
 #!/bin/sh
-# Container start: bring the database up to date, then run the API.
-# If the upgrade fails ONLY because the database is newer than this code (after
-# a rollback), start anyway; any other failure stops the container.
-if ! alembic upgrade head; then
-  python scripts/db_ahead.py || exit 1
-fi
+# Container start for the API. Migrations and database roles are handled by the
+# one-shot "migrate" service (scripts/migrate.sh), which holds the owner credentials;
+# this process only ever has the limited backend role.
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

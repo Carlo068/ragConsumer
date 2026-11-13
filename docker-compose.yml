@@ -82,10 +82,31 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
-  backend:
+  # One-shot, runs before the services start and then exits. It is the ONLY place
+  # that holds the database owner's password: it brings the schema up to date and
+  # creates the limited roles the backend, worker and MCP server connect as
+  # (backend/scripts/db_roles.py), so none of them can read password hashes
+  # (MCP, worker) or alter the audit log (any of them).
+  migrate:
     build: ./backend
+    image: ragconsumer-backend
+    command: ["sh", "scripts/migrate.sh"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      SESSION_SECRET: not-used-by-migrations
+      BACKEND_DB_PASSWORD: ${BACKEND_DB_PASSWORD:?Set BACKEND_DB_PASSWORD in .env (python scripts/generate_env.py)}
+      MCP_DB_PASSWORD: ${MCP_DB_PASSWORD:?Set MCP_DB_PASSWORD in .env (python scripts/generate_env.py)}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:?Set WORKER_DB_PASSWORD in .env (python scripts/generate_env.py)}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build: ./backend
+    image: ragconsumer-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://ragapp_backend:${BACKEND_DB_PASSWORD:?Set BACKEND_DB_PASSWORD in .env (python scripts/generate_env.py)}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env (python scripts/generate_env.py)}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       SESSION_HTTPS_ONLY: ${SESSION_HTTPS_ONLY:-false}
@@ -100,6 +121,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       minio-init:
         condition: service_completed_successfully
       qdrant:
@@ -110,7 +133,7 @@ services:
   ingestion-worker:
     build: ./ingestion_worker
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      DATABASE_URL: postgresql+psycopg://ragapp_worker:${WORKER_DB_PASSWORD:?Set WORKER_DB_PASSWORD in .env (python scripts/generate_env.py)}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${WORKER_MINIO_ACCESS_KEY:?Set WORKER_MINIO_ACCESS_KEY in .env}
       MINIO_SECRET_KEY: ${WORKER_MINIO_SECRET_KEY:?Set WORKER_MINIO_SECRET_KEY in .env}
@@ -130,6 +153,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       minio-init:
         condition: service_completed_successfully
       qdrant:
@@ -145,7 +170,7 @@ services:
   mcp_server:
     build: ./mcp_server
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      DATABASE_URL: postgresql+psycopg://ragapp_mcp:${MCP_DB_PASSWORD:?Set MCP_DB_PASSWORD in .env (python scripts/generate_env.py)}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
       PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:8002}
@@ -157,6 +182,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       qdrant:
         condition: service_started
     ports:

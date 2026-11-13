@@ -86,7 +86,10 @@ Never rename or drop something in the same release that stops using it; do that 
 a *later* release, once the new one has proven itself. Then the old code keeps
 working on the newer database. The backend knows this: if it starts and finds the
 database is ahead of it (a rolled-back release), it starts anyway instead of
-refusing; any other migration problem still stops it.
+refusing; any other migration problem still stops it. Migrations run in the one-shot
+`migrate` service, before anything else starts: it is the only place that holds the
+database owner's password, and it also re-applies each service's limited database
+role (`04-secrets.md` lists the roles).
 
 If a migration itself did damage (wrong data written, a column filled badly),
 rolling back the code does not help; **restore the backup** that was taken just

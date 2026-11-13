@@ -34,6 +34,8 @@ dc() { ( cd "$T/work" && docker compose $FILES "$@" ); }
 deploy() { ( cd "$T/work" && bash deploy/deploy.sh "$@" ) ; }
 head_of() { git -C "$T/work" rev-parse --short HEAD; }
 in_backend() { dc exec -T backend sh -c "$1"; }
+# The migration bookkeeping is the owner's: the services' own roles cannot read it.
+in_migrate() { dc run --rm --no-deps -T --entrypoint sh migrate -c "$1"; }
 git_w() { git -C "$T/work" "$@"; }
 git_s() { git -C "$T/seed" "$@"; }
 
@@ -54,7 +56,7 @@ FORCE=1 SKIP_BACKUP=1 deploy >"$T/d1.log" 2>&1 && ok "v1 deploys and passes the 
 FORCE=1 SKIP_BACKUP=1 deploy --dry-run >/dev/null 2>&1 && ok "dry run works" || bad "dry run failed"
 out="$(deploy 2>&1)"; grep -q "Already running" <<<"$out" && ok "deploying what is already running does nothing" || bad "not idempotent: $out"
 
-HEAD_REV="$(in_backend 'alembic heads' | awk '{print $1}' | head -1)"
+HEAD_REV="$(in_migrate 'alembic heads' | awk '{print $1}' | head -1)"
 echo "Release v2: a code change and a database migration"
 printf '\n# v2-marker\n' >> "$T/seed/backend/app/main.py"
 cat > "$T/seed/backend/alembic/versions/ffff00000001_noop.py" <<EOF
@@ -92,7 +94,7 @@ SKIP_BACKUP=1 deploy >"$T/d2.log" 2>&1 && ok "v2 deploys and passes the smoke te
 V2="$(head_of)"
 [[ "$(cat "$T/work/.deploy/previous")" == "$(git_w rev-parse "$V1")" ]] && ok "the previous version is recorded" || bad "previous version not recorded"
 [[ "$(in_backend 'grep -c v2-marker app/main.py')" == "1" ]] && ok "the running container really contains v2's code" || bad "container does not run v2"
-[[ "$(in_backend 'alembic current' | grep -c ffff00000001)" == "1" ]] && ok "the migration was applied" || bad "migration not applied"
+[[ "$(in_migrate 'alembic current 2>/dev/null' | grep -c ffff00000001)" == "1" ]] && ok "the migration was applied" || bad "migration not applied"
 
 echo "Release v3: broken (the backend cannot start)"
 printf '\nthis is not python (\n' >> "$T/seed/backend/app/main.py"
@@ -107,7 +109,7 @@ echo "Manual rollback across the migration (v2 -> v1)"
 SKIP_BACKUP=1 deploy --rollback >"$T/d4.log" 2>&1 && ok "rollback to v1 completes and passes the smoke test" || { bad "rollback failed"; tail -30 "$T/d4.log"; }
 [[ "$(head_of)" == "$V1" ]] && ok "the server is on v1" || bad "not on v1"
 [[ "$(in_backend 'grep -c v2-marker app/main.py' || true)" == "0" ]] && ok "the container runs v1's code" || bad "container still has v2's code"
-grep -q "database is newer than this version" <(dc logs backend 2>&1) && ok "v1 started on the newer database (migrations are additive)" || bad "v1 did not report starting on the newer database"
+grep -q "database is newer than this version" <(dc logs migrate 2>&1) && ok "v1 started on the newer database (migrations are additive)" || bad "v1 did not report starting on the newer database"
 [[ "$(wc -l < "$T/work/.deploy/history.log")" -ge 6 ]] && ok "every step is in the deploy history" || bad "history is incomplete"
 
 echo "Monitoring (v1 is running; alerts go to a local receiver)"

@@ -29,7 +29,10 @@ exist anywhere else.
 | Secret | Protects | Rotating it |
 |---|---|---|
 | `SESSION_SECRET` | Signs the login cookie. | Signs everyone out. |
-| `POSTGRES_PASSWORD` | The database with accounts, matters, the audit log. | Brief restart of backend, worker and MCP server. |
+| `POSTGRES_PASSWORD` | The database **owner**: it can read everything and could switch off the audit log's protections. Only the one-shot `migrate` step holds it; no running service does. | Nothing running restarts. |
+| `BACKEND_DB_PASSWORD` | The web API's limited database account (`ragapp_backend`): everything except editing or deleting the audit log. | Backend restarts. |
+| `MCP_DB_PASSWORD` | The AI connection's account (`ragapp_mcp`): reads only what it needs to decide who may see what (never password hashes) and adds to the audit log. | MCP server restarts. |
+| `WORKER_DB_PASSWORD` | The document worker's account (`ragapp_worker`): reads documents and records their progress. | Worker restarts. |
 | `MINIO_ROOT_PASSWORD` | Administration of document storage. Running services never use it; only the on-demand backup tool does. | MinIO restarts briefly. |
 | `BACKEND_MINIO_SECRET_KEY` | The backend's storage account (read, write, delete documents). | Backend restarts. |
 | `WORKER_MINIO_SECRET_KEY` | The worker's storage account (read-only). | Worker restarts. |

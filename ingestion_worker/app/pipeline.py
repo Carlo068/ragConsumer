@@ -1,5 +1,4 @@
 import os
-import re
 import tempfile
 import uuid
 
@@ -12,18 +11,6 @@ from qdrant_client import QdrantClient, models
 from sqlalchemy import create_engine, text
 
 from app.config import settings
-
-# --- Object key parsing ---------------------------------------------------
-# Keys are written by the backend as: collection-{collection_id}/doc-{doc_id}/{filename}
-_KEY_PATTERN = re.compile(r"^collection-(?P<collection_id>[^/]+)/doc-(?P<doc_id>[^/]+)/(?P<filename>.+)$")
-
-
-def parse_object_key(key: str) -> tuple[str, str, str]:
-    match = _KEY_PATTERN.match(key)
-    if not match:
-        raise ValueError(f"Unexpected object key format: {key!r}")
-    return match.group("collection_id"), match.group("doc_id"), match.group("filename")
-
 
 # --- Postgres status updates ----------------------------------------------
 _engine = create_engine(settings.DATABASE_URL)
@@ -151,41 +138,55 @@ def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[s
         _qdrant_client.upsert(collection_name=collection_name, points=points)
 
 
-# --- End-to-end per-object pipeline -------------------------------------------
-def is_known_document(collection_id: str, doc_id: str, key: str) -> bool:
-    """Only index objects the backend registered. The webhook is not
-    authenticated, so a forged or stale event (for an object that was deleted,
-    or a key that was never uploaded through the app) must not create vectors."""
+# --- End-to-end per-document pipeline -----------------------------------------
+def _document_still_exists(doc_id: str) -> bool:
     with _engine.connect() as conn:
-        row = conn.execute(
-            text(
-                "SELECT 1 FROM documents "
-                "WHERE id = :doc_id AND collection_id = :collection_id AND object_key = :key"
-            ),
-            {"doc_id": doc_id, "collection_id": collection_id, "key": key},
-        ).first()
-    return row is not None
+        return conn.execute(
+            text("SELECT 1 FROM documents WHERE id = :doc_id"), {"doc_id": doc_id}
+        ).first() is not None
 
 
-def process_object(bucket: str, key: str) -> None:
-    if bucket != settings.MINIO_BUCKET:
-        print(f"Ignoring event for unexpected bucket {bucket!r}")
+def _matter_still_exists(collection_id: str) -> bool:
+    with _engine.connect() as conn:
+        return conn.execute(
+            text("SELECT 1 FROM collections WHERE id = :collection_id"),
+            {"collection_id": collection_id},
+        ).first() is not None
+
+
+def _discard_vectors_of_deleted_document(collection_id: str, doc_id: str) -> None:
+    """The document (or its whole matter) was deleted while we were indexing it.
+    Deleting cleans Qdrant first, so anything written after that would otherwise
+    stay searchable with nothing left to delete it."""
+    name = matter_collection_name(collection_id)
+    if not _matter_still_exists(collection_id):
+        if _qdrant_client.collection_exists(name):
+            _qdrant_client.delete_collection(name)
         return
-    collection_id, doc_id, filename = parse_object_key(key)
-    if not is_known_document(collection_id, doc_id, key):
-        print(f"Ignoring event for an object with no matching document: {key}")
-        return
-    update_document_status(doc_id, "processing")
+    _qdrant_client.delete(
+        collection_name=name,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id))]
+            )
+        ),
+    )
 
+
+def process_document(job) -> None:
+    """Index one claimed document (the queue has already marked it processing)."""
     local_path = None
     try:
-        local_path = download_to_temp(bucket, key, filename)
+        local_path = download_to_temp(settings.MINIO_BUCKET, job.object_key, job.filename)
         markdown_text = convert_to_markdown(local_path)
         chunks = chunk_markdown(markdown_text)
-        upsert_chunks(collection_id, doc_id, filename, chunks)
-        update_document_status(doc_id, "ready")
+        upsert_chunks(job.collection_id, job.doc_id, job.filename, chunks)
+        if _document_still_exists(job.doc_id):
+            update_document_status(job.doc_id, "ready")
+        else:
+            _discard_vectors_of_deleted_document(job.collection_id, job.doc_id)
     except Exception:
-        update_document_status(doc_id, "failed")
+        update_document_status(job.doc_id, "failed")
         raise
     finally:
         if local_path and os.path.exists(local_path):

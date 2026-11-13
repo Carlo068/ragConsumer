@@ -1,10 +1,26 @@
-from urllib.parse import unquote_plus
+from fastapi import FastAPI
 
-from fastapi import FastAPI, Request
-
-from app.pipeline import process_object
+from app import queue
+from app.config import settings
+from app.pipeline import _engine, process_document
 
 app = FastAPI()
+
+runner = queue.Runner(_engine, process_document, poll_seconds=settings.QUEUE_POLL_SECONDS)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    # Anything caught mid-file by a restart goes back in the queue.
+    requeued = queue.requeue_interrupted(_engine)
+    if requeued:
+        print(f"Re-queued {requeued} document(s) interrupted by a restart")
+    runner.start()
+
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    runner.stop()
 
 
 @app.get("/health")
@@ -13,13 +29,10 @@ def health():
 
 
 @app.post("/webhook")
-async def webhook(request: Request):
-    body = await request.json()
-    for record in body.get("Records", []):
-        bucket = record["s3"]["bucket"]["name"]
-        key = unquote_plus(record["s3"]["object"]["key"])
-        try:
-            process_object(bucket, key)
-        except Exception as exc:  # noqa: BLE001 - one bad record shouldn't 500 the whole webhook
-            print(f"Failed to process {key}: {exc}")
+async def webhook():
+    """Storage tells us something was uploaded. We don't trust or even read the
+    event: the documents table is the queue, so this just wakes the worker and
+    answers straight away, however slow processing is. (A dropped or early
+    event is harmless: the worker also polls.)"""
+    runner.wake()
     return {"ok": True}

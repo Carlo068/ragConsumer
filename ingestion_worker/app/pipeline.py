@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, text
 from app.config import settings
 from app import formats
 from app.chunking import chunk_markdown
-from app.failures import IndexOutdated, NoTextFound, failure_reason
+from app.failures import DocumentDeleted, IndexOutdated, NoTextFound, failure_reason
 from app.index_model import fingerprint, is_compatible
 from app.ocr import count_pdf_pages, needs_ocr, run_ocr
 
@@ -127,6 +127,17 @@ def chunk_point_id(doc_id: str, chunk_index: int) -> str:
 EMBED_BATCH_SIZE = 64
 
 
+def touch_document(doc_id: str) -> bool:
+    """Heartbeat after each batch: records that this document is still making
+    progress (so a long file is not mistaken for a stuck one) and reports
+    whether it still exists (so a deleted file stops being indexed at once)."""
+    with _engine.begin() as conn:
+        result = conn.execute(
+            text("UPDATE documents SET updated_at = now() WHERE id = :doc_id"), {"doc_id": doc_id}
+        )
+    return result.rowcount > 0
+
+
 def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[str]) -> None:
     # Embedding + upserting the whole document's chunks in one shot holds every
     # dense/sparse vector for every chunk in memory at once -- for a large
@@ -163,6 +174,8 @@ def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[s
             )
         ]
         _qdrant_client.upsert(collection_name=collection_name, points=points)
+        if not touch_document(doc_id):
+            raise DocumentDeleted(doc_id)
 
 
 # --- End-to-end per-document pipeline -----------------------------------------
@@ -216,6 +229,10 @@ def process_document(job) -> None:
             update_document_status(job.doc_id, "ready")
         else:
             _discard_vectors_of_deleted_document(job.collection_id, job.doc_id)
+    except DocumentDeleted:
+        # Deleting a file already cleaned up what existed then; remove what this
+        # run wrote since, and stop. Not a failure.
+        _discard_vectors_of_deleted_document(job.collection_id, job.doc_id)
     except Exception as exc:
         # The person sees a plain-language reason; the details stay in our log.
         update_document_status(job.doc_id, "failed", failure_reason(exc))

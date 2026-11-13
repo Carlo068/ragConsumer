@@ -21,7 +21,14 @@ class Settings(BaseSettings):
     # Empty = no auth (plain local Qdrant). Always set in compose.
     QDRANT_API_KEY: str = ""
 
-    MAX_UPLOAD_SIZE_BYTES: int = 2 * 1024 * 1024
+    # Largest file accepted, in megabytes. The default comes from a measured test
+    # (see KAN-80): large scanned/legal PDFs are common, and the worker indexes
+    # in bounded batches, so size costs time, not memory.
+    MAX_UPLOAD_MB: int = 50
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.MAX_UPLOAD_MB * 1024 * 1024
 
     # Invite links point here; set to the public URL in production.
     FRONTEND_URL: str = "http://localhost:5173"

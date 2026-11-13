@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
 import { adminService } from "@/services/adminService"
 import type { AuditEntry, AuditFilters } from "@/models/audit"
+import { useI18n } from "@/i18n/useI18n"
 
 export const AUDIT_PAGE_SIZE = 25
 
 export function useAuditLog() {
+  const { errorText } = useI18n()
   const [filters, setFilters] = useState<AuditFilters>({})
   const [offset, setOffset] = useState(0)
   const [items, setItems] = useState<AuditEntry[]>([])
@@ -20,11 +22,11 @@ export function useAuditLog() {
       setTotal(page.total)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load the activity log")
+      setError(errorText(err, "audit.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [filters, offset])
+  }, [filters, offset, errorText])
 
   useEffect(() => {
     load()

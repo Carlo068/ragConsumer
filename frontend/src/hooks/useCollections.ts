@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { collectionsService } from "@/services/collectionsService"
 import type { Collection } from "@/models/collection"
+import { useI18n } from "@/i18n/useI18n"
 
 export function useCollections() {
+  const { errorText } = useI18n()
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -13,11 +15,11 @@ export function useCollections() {
       setCollections(result)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load collections")
+      setError(errorText(err, "collections.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [errorText])
 
   useEffect(() => {
     refresh()

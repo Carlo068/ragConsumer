@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react"
 import { membersService } from "@/services/membersService"
 import type { CollectionRole } from "@/models/collection"
 import type { Member } from "@/models/member"
+import { useI18n } from "@/i18n/useI18n"
 
 export function useMembers(collectionId: string) {
+  const { errorText } = useI18n()
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -13,11 +15,11 @@ export function useMembers(collectionId: string) {
       setMembers(await membersService.list(collectionId))
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load members")
+      setError(errorText(err, "members.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [collectionId])
+  }, [collectionId, errorText])
 
   useEffect(() => {
     refresh()

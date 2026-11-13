@@ -4,6 +4,7 @@ import { useCollections } from "@/hooks/useCollections"
 import { useAuth } from "@/hooks/useAuth"
 import { useDocuments } from "@/hooks/useDocuments"
 import { useLimits } from "@/hooks/useLimits"
+import { useI18n } from "@/i18n/useI18n"
 import { useMembers } from "@/hooks/useMembers"
 import { canEditFiles, canManageCollection } from "@/models/collection"
 import { DocumentList } from "./components/DocumentList"
@@ -11,6 +12,7 @@ import { MembersPanel } from "./components/MembersPanel"
 import { UploadForm } from "./components/UploadForm"
 
 export function UploadPage() {
+  const { t } = useI18n()
   const { collectionId } = useParams<{ collectionId: string }>()
   const { collections } = useCollections()
   const limits = useLimits()
@@ -27,15 +29,15 @@ export function UploadPage() {
     <div className="mx-auto max-w-2xl p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Upload</h1>
+          <h1 className="text-2xl font-semibold">{t("upload.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            {collection?.name ?? "Loading collection..."}
+            {collection?.name ?? t("upload.loadingCollection")}
           </p>
         </div>
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link to="/collections">Back to collections</Link>}
+          render={<Link to="/collections">{t("common.backToCollections")}</Link>}
         />
       </div>
 
@@ -46,12 +48,12 @@ export function UploadPage() {
       ) : (
         collection && (
           <p className="text-muted-foreground mb-6 text-sm">
-            You can view this collection, but only editors and owners can add or remove files.
+            {t("upload.viewOnly")}
           </p>
         )
       )}
 
-      {loading && <p>Loading documents...</p>}
+      {loading && <p>{t("upload.loadingDocuments")}</p>}
       {error && <p className="text-destructive">{error}</p>}
       <DocumentList
         documents={documents}

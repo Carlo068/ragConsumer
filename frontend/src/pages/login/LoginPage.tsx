@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher"
 import { useAuth } from "@/hooks/useAuth"
 import { LoginForm } from "./components/LoginForm"
 
@@ -21,8 +22,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-4">
       <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
+      <LanguageSwitcher />
     </div>
   )
 }

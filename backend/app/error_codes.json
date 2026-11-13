@@ -1,0 +1,21 @@
+[
+  "admin_required",
+  "already_member",
+  "document_busy",
+  "document_not_found",
+  "email_taken",
+  "file_needs_name",
+  "file_too_large",
+  "invalid_credentials",
+  "invite_invalid",
+  "invite_not_found",
+  "last_owner",
+  "matter_not_found",
+  "no_account_for_email",
+  "not_a_member",
+  "not_authenticated",
+  "password_too_short",
+  "role_required",
+  "token_not_found",
+  "too_many_tokens"
+]

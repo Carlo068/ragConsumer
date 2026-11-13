@@ -30,9 +30,15 @@ function setup(documents: Document[], extra = {}) {
 }
 
 describe("DocumentList failures", () => {
-  it("explains why a file failed, in the stored plain-language reason", () => {
-    setup([doc({ status: "failed", error_message: "No text could be found in this file." })])
-    expect(screen.getByText("No text could be found in this file.")).toBeInTheDocument()
+  it("explains why a file failed, in plain language, from the stored reason code", () => {
+    setup([doc({ status: "failed", error_message: "no_text" })])
+    expect(screen.getByText(/No text could be found in this file/)).toBeInTheDocument()
+    expect(screen.queryByText("no_text")).not.toBeInTheDocument()
+  })
+
+  it("still shows an older failure that was stored as a sentence", () => {
+    setup([doc({ status: "failed", error_message: "Something old and English." })])
+    expect(screen.getByText("Something old and English.")).toBeInTheDocument()
   })
 
   it("offers Try again only on failed files, and calls retry with that file", async () => {

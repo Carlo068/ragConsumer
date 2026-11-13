@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { ApiError } from "@/services/apiClient"
 import { MembersPanel } from "@/pages/upload/components/MembersPanel"
 import type { Member } from "@/models/member"
 
@@ -37,7 +38,7 @@ describe("MembersPanel", () => {
     expect(screen.queryByLabelText("Add someone who already has an account")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Leave" })).toBeInTheDocument()
-    expect(screen.getByText("viewer")).toBeInTheDocument()
+    expect(screen.getByText("Viewer")).toBeInTheDocument()
   })
 
   it("marks the current user and offers 'Leave' only on their own row", () => {
@@ -60,9 +61,11 @@ describe("MembersPanel", () => {
     expect(props.onChangeRole).toHaveBeenCalledWith("u2", "editor")
   })
 
-  it("shows the server's message when a change is refused (e.g. last owner)", async () => {
+  it("explains why a change was refused (e.g. last owner)", async () => {
     const { user } = setup({
-      onChangeRole: vi.fn().mockRejectedValue(new Error("A collection must keep at least one owner.")),
+      onChangeRole: vi
+        .fn()
+        .mockRejectedValue(new ApiError(409, "A collection must keep at least one owner.", "last_owner")),
     })
     await user.selectOptions(screen.getByLabelText("Role for me@firm.mx"), "viewer")
     expect(await screen.findByText("A collection must keep at least one owner.")).toBeInTheDocument()

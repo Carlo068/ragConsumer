@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/i18n/useI18n"
 
 interface CopyBlockProps {
   label: string
@@ -7,6 +8,7 @@ interface CopyBlockProps {
 }
 
 export function CopyBlock({ label, code }: CopyBlockProps) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
@@ -20,7 +22,7 @@ export function CopyBlock({ label, code }: CopyBlockProps) {
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{label}</span>
         <Button variant="outline" size="sm" onClick={handleCopy}>
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("common.copied") : t("common.copy")}
         </Button>
       </div>
       <pre className="bg-muted overflow-x-auto rounded-lg p-3 text-xs">

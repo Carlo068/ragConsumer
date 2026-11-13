@@ -11,6 +11,7 @@ from app import audit
 from app.auth import get_current_user
 from app.config import settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import ApiToken, User
 from app.routers.admin import utcnow
 from app.schemas import TokenCreate, TokenCreated, TokenOut
@@ -47,9 +48,11 @@ def create_token(
 ):
     live = db.scalar(select(func.count()).select_from(ApiToken).where(*_active(current_user.id)))
     if live >= settings.MAX_ACTIVE_TOKENS_PER_USER:
-        raise HTTPException(
+        raise ApiError(
             status.HTTP_409_CONFLICT,
+            "too_many_tokens",
             f"You already have {live} active tokens. Revoke one you no longer use first.",
+            count=live,
         )
 
     raw = TOKEN_PREFIX + secrets.token_urlsafe(32)
@@ -90,7 +93,7 @@ def revoke_token(
     )
     # Someone else's token looks exactly like a missing one.
     if token is None or token.revoked_at is not None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "token_not_found", "Token not found")
     token.revoked_at = utcnow()
     audit.record(
         db, audit.TOKEN_REVOKED, actor=current_user, target=token.name,

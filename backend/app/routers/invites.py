@@ -6,6 +6,7 @@ from app import audit
 from app.auth import hash_password
 from app.config import settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import Invite, User
 from app.routers.admin import hash_invite_token, utcnow
 from app.schemas import InviteAccept, InviteInfo, UserOut
@@ -22,7 +23,7 @@ def _get_valid_invite(db: Session, token: str) -> Invite:
     # Unknown, already used and expired all get the same answer: the invitee
     # can't act on the difference anyway (they need a new link either way).
     if invite is None or invite.accepted_at is not None or invite.expires_at <= utcnow():
-        raise HTTPException(status.HTTP_404_NOT_FOUND, INVALID_INVITE)
+        raise ApiError(status.HTTP_404_NOT_FOUND, "invite_invalid", INVALID_INVITE)
     return invite
 
 
@@ -41,12 +42,14 @@ def accept_invite(
     invite = _get_valid_invite(db, token)
 
     if len(payload.password) < settings.MIN_PASSWORD_LENGTH:
-        raise HTTPException(
+        raise ApiError(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "password_too_short",
             f"Password must be at least {settings.MIN_PASSWORD_LENGTH} characters",
+            min=settings.MIN_PASSWORD_LENGTH,
         )
     if db.scalar(select(User).where(User.email == invite.email)) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "A user with this email already exists")
+        raise ApiError(status.HTTP_409_CONFLICT, "email_taken", "A user with this email already exists")
 
     user = User(email=invite.email, password_hash=hash_password(payload.password))
     db.add(user)

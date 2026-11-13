@@ -23,6 +23,5 @@ def test_a_collection_with_no_fingerprint_is_not():
     assert not is_compatible({}, fingerprint("m", "spanish"))
 
 
-def test_an_outdated_index_gets_a_plain_language_reason():
-    assert failure_reason(IndexOutdated("matter_x")) == INDEX_OUTDATED
-    assert "rebuilt" in INDEX_OUTDATED
+def test_an_outdated_index_gets_its_own_code():
+    assert failure_reason(IndexOutdated("matter_x")) == INDEX_OUTDATED == "index_outdated"

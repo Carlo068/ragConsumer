@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
+from app.errors import ApiError
 from app.models import AiMatterSelection, CollectionMember, CollectionRole, User
 from app.schemas import MemberAdd, MemberOut, MemberRoleUpdate
 
@@ -38,7 +39,9 @@ def _get_member(db: Session, collection_id: uuid.UUID, user_id: uuid.UUID) -> Co
         )
     )
     if member is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "That person is not a member of this collection")
+        raise ApiError(
+            status.HTTP_404_NOT_FOUND, "not_a_member", "That person is not a member of this collection"
+        )
     return member
 
 
@@ -72,8 +75,9 @@ def add_member(
     # is the firm administrator's job (invitations), not a matter owner's.
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None:
-        raise HTTPException(
+        raise ApiError(
             status.HTTP_404_NOT_FOUND,
+            "no_account_for_email",
             "No account with that email. Ask your firm's administrator to invite them first.",
         )
     existing = db.scalar(
@@ -83,7 +87,7 @@ def add_member(
         )
     )
     if existing is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "That person is already a member")
+        raise ApiError(status.HTTP_409_CONFLICT, "already_member", "That person is already a member")
 
     member = CollectionMember(user_id=user.id, collection_id=collection_id, role=payload.role)
     db.add(member)
@@ -108,7 +112,7 @@ def change_member_role(
 
     demoting_an_owner = member.role == CollectionRole.owner and payload.role != CollectionRole.owner
     if demoting_an_owner and _owner_count(db, collection_id) <= 1:
-        raise HTTPException(status.HTTP_409_CONFLICT, LAST_OWNER)
+        raise ApiError(status.HTTP_409_CONFLICT, "last_owner", LAST_OWNER)
 
     previous_role = member.role
     member.role = payload.role
@@ -140,7 +144,7 @@ def remove_member(
     member = _get_member(db, collection_id, user_id)
 
     if member.role == CollectionRole.owner and _owner_count(db, collection_id) <= 1:
-        raise HTTPException(status.HTTP_409_CONFLICT, LAST_OWNER)
+        raise ApiError(status.HTTP_409_CONFLICT, "last_owner", LAST_OWNER)
 
     removed = db.get(User, user_id)
     audit.record(

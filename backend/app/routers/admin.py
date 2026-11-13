@@ -15,6 +15,7 @@ from app import audit
 from app.auth import require_admin
 from app.config import settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import AuditLog, Invite, User
 from app.schemas import (
     AdminUserOut,
@@ -65,7 +66,7 @@ def create_invite(
 ):
     email = payload.email.lower()
     if db.scalar(select(User).where(User.email == email)) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "A user with this email already exists")
+        raise ApiError(status.HTTP_409_CONFLICT, "email_taken", "A user with this email already exists")
 
     # Re-inviting replaces any earlier unaccepted invite, so only the newest
     # link works. An old link forwarded somewhere can't be used later.
@@ -100,7 +101,7 @@ def revoke_invite(
 ):
     invite = db.get(Invite, invite_id)
     if invite is None or invite.accepted_at is not None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invite not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "invite_not_found", "Invite not found")
     audit.record(db, audit.INVITE_REVOKED, actor=admin, target=invite.email)
     db.delete(invite)
     db.commit()

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { useI18n } from "@/i18n/useI18n"
 import { authService } from "@/services/authService"
 import type { LoginRequest } from "@/models/auth"
 import type { User } from "@/models/user"
@@ -17,6 +18,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { errorText } = useI18n()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const loggedInUser = await authService.login(payload)
       setUser(loggedInUser)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      setError(errorText(err, "login.failed"))
       throw err
     }
   }

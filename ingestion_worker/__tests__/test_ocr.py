@@ -66,5 +66,5 @@ def test_an_unreadable_scan_becomes_the_unreadable_message(monkeypatch):
     with pytest.raises(OcrFailed) as error:
         run_ocr("in.pdf", "out.pdf", "spa+eng", 1)
     assert failure_reason(error.value) == UNREADABLE
-    # The raw detail is kept for the log but is never what the person is shown.
+    # The raw detail is kept for the log but is never what is stored or shown.
     assert "Encrypted" in str(error.value) and "Encrypted" not in failure_reason(error.value)

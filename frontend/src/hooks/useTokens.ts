@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { tokenService } from "@/services/tokenService"
 import type { ApiToken, ApiTokenCreated } from "@/models/token"
+import { useI18n } from "@/i18n/useI18n"
 
 export function useTokens() {
+  const { errorText } = useI18n()
   const [tokens, setTokens] = useState<ApiToken[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -12,11 +14,11 @@ export function useTokens() {
       setTokens(await tokenService.list())
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load your access keys")
+      setError(errorText(err, "tokens.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [errorText])
 
   useEffect(() => {
     refresh()

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CopyBlock } from "@/components/common/CopyBlock"
+import { useI18n } from "@/i18n/useI18n"
 import type { InviteCreated } from "@/models/invite"
 
 interface InviteUserFormProps {
@@ -10,6 +11,7 @@ interface InviteUserFormProps {
 }
 
 export function InviteUserForm({ onInvite }: InviteUserFormProps) {
+  const { t, errorText, formatDateTime } = useI18n()
   const [email, setEmail] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +25,7 @@ export function InviteUserForm({ onInvite }: InviteUserFormProps) {
       setCreated(await onInvite(email.trim()))
       setEmail("")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the invitation")
+      setError(errorText(err, "admin.inviteFailed"))
     } finally {
       setSubmitting(false)
     }
@@ -33,7 +35,7 @@ export function InviteUserForm({ onInvite }: InviteUserFormProps) {
     <div className="flex flex-col gap-4">
       <form onSubmit={handleSubmit} className="flex items-end gap-3">
         <div className="flex flex-1 flex-col gap-2">
-          <Label htmlFor="invite-email">Email of the person to invite</Label>
+          <Label htmlFor="invite-email">{t("admin.inviteEmail")}</Label>
           <Input
             id="invite-email"
             type="email"
@@ -43,7 +45,7 @@ export function InviteUserForm({ onInvite }: InviteUserFormProps) {
           />
         </div>
         <Button type="submit" disabled={submitting || !email.trim()}>
-          {submitting ? "Creating..." : "Create invitation"}
+          {submitting ? t("admin.inviteSubmitting") : t("admin.inviteSubmit")}
         </Button>
       </form>
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -51,11 +53,12 @@ export function InviteUserForm({ onInvite }: InviteUserFormProps) {
       {created && (
         <div className="flex flex-col gap-2 rounded-lg border p-4">
           <p className="text-sm">
-            Send this link to <strong>{created.email}</strong>. It works once and expires on{" "}
-            {new Date(created.expires_at + "Z").toLocaleString()}. This is the only time it's
-            shown.
+            {t("admin.inviteCreated", {
+              email: created.email,
+              expires: formatDateTime(created.expires_at),
+            })}
           </p>
-          <CopyBlock label="Invitation link" code={created.invite_url} />
+          <CopyBlock label={t("admin.inviteLink")} code={created.invite_url} />
         </div>
       )}
     </div>

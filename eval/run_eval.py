@@ -79,6 +79,7 @@ def main():
     parser.add_argument("--dense", default="BAAI/bge-small-en-v1.5")
     parser.add_argument("--bm25-language", default="english")
     parser.add_argument("--no-stemmer", action="store_true")
+    parser.add_argument("--idf", action="store_true", help="enable Qdrant's IDF modifier on the sparse vector")
     parser.add_argument("--json", action="store_true", help="print machine-readable results")
     args = parser.parse_args()
 
@@ -102,7 +103,9 @@ def main():
     client.create_collection(
         "eval",
         vectors_config={"dense": models.VectorParams(size=len(dense_vectors[0]), distance=models.Distance.COSINE)},
-        sparse_vectors_config={"sparse": models.SparseVectorParams()},
+        sparse_vectors_config={
+            "sparse": models.SparseVectorParams(modifier=models.Modifier.IDF if args.idf else None)
+        },
     )
     client.upsert(
         "eval",
@@ -156,6 +159,7 @@ def main():
         "dense": args.dense,
         "bm25_language": args.bm25_language,
         "stemmer": not args.no_stemmer,
+        "idf": args.idf,
         "chunks": len(corpus),
         "queries": len(queries),
         "overall": {mode: metrics(r) for mode, r in ranks.items()},

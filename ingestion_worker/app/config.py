@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # A document still "processing" after this long is marked failed (retryable).
     STUCK_AFTER_MINUTES: float = 60.0
 
+    # Search models. Chosen on the Spanish legal evaluation set (eval/, KAN-79).
+    # The MCP server must use exactly the same two values, and changing them
+    # means re-indexing every document (backend/scripts/reindex_all.py).
+    DENSE_MODEL: str = "jinaai/jina-embeddings-v2-base-es"
+    BM25_LANGUAGE: str = "spanish"
+
     # Text recognition for scanned PDFs. A PDF with fewer than this many
     # characters of text per page is treated as a scan and run through OCR.
     OCR_LANGUAGES: str = "spa+eng"

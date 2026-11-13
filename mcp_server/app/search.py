@@ -4,17 +4,18 @@ from sqlalchemy import bindparam, create_engine, text
 
 from app import audit
 from app.config import settings
+from app.index_model import fingerprint, is_compatible
 from app.matters import get_allowed_matters as _get_allowed_matters
 from app.matters import matter_collection_name
 from app.qdrant_access import scoped_client
 
 # Must match ingestion_worker/app/pipeline.py exactly -- same collection naming,
 # same vector names, same embedding models -- since this reads what that writes.
-DENSE_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 SPARSE_MODEL_NAME = "Qdrant/bm25"
 
-_dense_model = TextEmbedding(model_name=DENSE_MODEL_NAME)
-_sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME)
+_dense_model = TextEmbedding(model_name=settings.DENSE_MODEL)
+_sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME, language=settings.BM25_LANGUAGE)
+INDEX_FINGERPRINT = fingerprint(settings.DENSE_MODEL, settings.BM25_LANGUAGE)
 _engine = create_engine(settings.DATABASE_URL)
 
 NO_MATTERS_MESSAGE = (
@@ -27,7 +28,7 @@ def get_allowed_matters(user_id: str) -> dict[str, str]:
     return _get_allowed_matters(_engine, user_id)
 
 
-def _open_matters(matters: dict[str, str]) -> tuple[QdrantClient, dict[str, str]]:
+def _open_matters(matters: dict[str, str]) -> tuple[QdrantClient, dict[str, str], list[str]]:
     """A Qdrant client able to read only these matters' collections, plus
     {qdrant collection name: matter name} for those that exist yet (a matter's
     collection is created on its first ingest).
@@ -39,7 +40,17 @@ def _open_matters(matters: dict[str, str]) -> tuple[QdrantClient, dict[str, str]
     client = scoped_client(
         settings.QDRANT_URL, settings.QDRANT_API_KEY, list(names), settings.QDRANT_TOKEN_TTL_SECONDS
     )
-    return client, {n: m for n, m in names.items() if client.collection_exists(n)}
+    existing = {n: m for n, m in names.items() if client.collection_exists(n)}
+    # A collection built with different search models (vector size, language
+    # rules) must not be queried with ours: skip it and say so, rather than
+    # failing or returning nonsense. It is rebuilt by backend/scripts/reindex_all.py.
+    usable, stale = {}, []
+    for collection_name, matter_name in existing.items():
+        if is_compatible(client.get_collection(collection_name).config.metadata, INDEX_FINGERPRINT):
+            usable[collection_name] = matter_name
+        else:
+            stale.append(matter_name)
+    return client, usable, stale
 
 
 def _matter_id(collection_name: str) -> str:
@@ -54,10 +65,10 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
         )
         return [{"message": NO_MATTERS_MESSAGE}]
 
-    dense_vec = list(_dense_model.embed([query]))[0]
-    sparse_vec = list(_sparse_model.embed([query]))[0]
+    dense_vec = next(iter(_dense_model.query_embed(query)))
+    sparse_vec = next(iter(_sparse_model.query_embed(query)))
 
-    client, collections = _open_matters(matters)
+    client, collections, stale = _open_matters(matters)
     hits = []
     for collection_name, matter_name in collections.items():
         results = client.query_points(
@@ -93,7 +104,7 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
             detail={"query": query, "chunk_ids": returned},
         )
 
-    return [
+    results = [
         {
             "chunk_id": str(point.id),
             "doc_id": point.payload["doc_id"],
@@ -103,6 +114,15 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
         }
         for point, _, matter_name in top
     ]
+    if stale:
+        results.append(
+            {
+                "message": "The search index for "
+                + ", ".join(stale)
+                + " is being rebuilt, so its documents cannot be searched yet."
+            }
+        )
+    return results
 
 
 def get_content(user_id: str, chunk_id: str) -> str | None:
@@ -115,7 +135,7 @@ def get_content(user_id: str, chunk_id: str) -> str | None:
     # The chunk's matter isn't known up front, so look in each matter this
     # person's AI can reach. A chunk elsewhere is never looked at, and so is
     # indistinguishable from one that doesn't exist.
-    client, collections = _open_matters(matters)
+    client, collections, _ = _open_matters(matters)
     for collection_name, matter_name in collections.items():
         points = client.retrieve(
             collection_name=collection_name, ids=[chunk_id], with_payload=True
@@ -137,7 +157,7 @@ def get_document(user_id: str, doc_id: str) -> str | None:
                      detail={"matters_searched": 0})
         return NO_MATTERS_MESSAGE
 
-    client, collections = _open_matters(matters)
+    client, collections, _ = _open_matters(matters)
     for collection_name, matter_name in collections.items():
         points, _ = client.scroll(
             collection_name=collection_name,

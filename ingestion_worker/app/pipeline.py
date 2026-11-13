@@ -11,7 +11,8 @@ from sqlalchemy import create_engine, text
 from app.config import settings
 from app import formats
 from app.chunking import chunk_markdown
-from app.failures import NoTextFound, failure_reason
+from app.failures import IndexOutdated, NoTextFound, failure_reason
+from app.index_model import fingerprint, is_compatible
 from app.ocr import count_pdf_pages, needs_ocr, run_ocr
 
 # --- Postgres status updates ----------------------------------------------
@@ -85,13 +86,13 @@ def convert_with_ocr(path: str) -> str:
 
 
 # --- Embedding + Qdrant upsert -----------------------------------------------
-DENSE_MODEL_NAME = "BAAI/bge-small-en-v1.5"
-DENSE_VECTOR_SIZE = 384
 SPARSE_MODEL_NAME = "Qdrant/bm25"
 
 _qdrant_client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY or None)
-_dense_model = TextEmbedding(model_name=DENSE_MODEL_NAME)
-_sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME)
+_dense_model = TextEmbedding(model_name=settings.DENSE_MODEL)
+_sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME, language=settings.BM25_LANGUAGE)
+DENSE_VECTOR_SIZE = _dense_model.embedding_size
+INDEX_FINGERPRINT = fingerprint(settings.DENSE_MODEL, settings.BM25_LANGUAGE)
 
 
 def matter_collection_name(collection_id: str) -> str:
@@ -108,8 +109,12 @@ def ensure_matter_collection(collection_id: str) -> str:
             vectors_config={
                 "dense": models.VectorParams(size=DENSE_VECTOR_SIZE, distance=models.Distance.COSINE)
             },
-            sparse_vectors_config={"sparse": models.SparseVectorParams()},
+            # BM25 needs Qdrant's IDF modifier to weigh rare terms properly.
+            sparse_vectors_config={"sparse": models.SparseVectorParams(modifier=models.Modifier.IDF)},
+            metadata={"embedding": INDEX_FINGERPRINT},
         )
+    elif not is_compatible(_qdrant_client.get_collection(name).config.metadata, INDEX_FINGERPRINT):
+        raise IndexOutdated(name)
     return name
 
 
@@ -132,8 +137,8 @@ def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[s
     for batch_start in range(0, len(chunks), EMBED_BATCH_SIZE):
         batch = chunks[batch_start : batch_start + EMBED_BATCH_SIZE]
 
-        dense_vectors = list(_dense_model.embed(batch))
-        sparse_vectors = list(_sparse_model.embed(batch))
+        dense_vectors = list(_dense_model.passage_embed(batch))
+        sparse_vectors = list(_sparse_model.passage_embed(batch))
 
         points = [
             models.PointStruct(

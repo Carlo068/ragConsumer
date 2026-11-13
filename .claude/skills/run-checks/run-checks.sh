@@ -61,6 +61,22 @@ if [[ $CHECK_STACK -eq 1 ]]; then
     if [[ "$code" == "200" ]]; then record "stack: $1" PASS; else record "stack: $1" "FAIL (HTTP $code)"; fi
   done
 
+  # Each service connects to the database as its own limited role, and is refused
+  # what it should be refused (backend/scripts/check_db_roles.py).
+  echo "===== database roles"
+  if (cd "$ROOT" && docker compose run --rm --no-deps --entrypoint python migrate scripts/check_db_roles.py); then
+    record "stack: database roles" PASS
+  else
+    record "stack: database roles" FAIL
+  fi
+  # ...and the owner's password is not inside any running service.
+  owner_pw="$(grep -E '^POSTGRES_PASSWORD=' "$ROOT/.env" | cut -d= -f2-)"
+  leaked=0
+  for svc in backend ingestion-worker mcp_server; do
+    if (cd "$ROOT" && docker compose exec -T "$svc" printenv) | grep -qF -- "$owner_pw"; then leaked=1; echo "  the owner's password is in $svc's environment"; fi
+  done
+  if [[ $leaked -eq 0 ]]; then record "stack: no owner credentials in services" PASS; else record "stack: no owner credentials in services" FAIL; fi
+
   # Qdrant's own matter isolation, proven live (see mcp_server/app/isolation_check.py).
   echo "===== qdrant isolation"
   if (cd "$ROOT" && docker compose exec -T mcp_server python -m app.isolation_check); then

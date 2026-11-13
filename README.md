@@ -46,6 +46,7 @@ flowchart LR
 | Backend API | `backend/` | FastAPI + Postgres. Accounts, invitations, matters and roles, uploads, audit log, personal access keys. |
 | Ingestion worker | `ingestion_worker/` | Turns uploaded files into searchable fragments: text extraction, OCR, chunking, Spanish-tuned embeddings. Document records in Postgres are its durable queue. |
 | MCP server | `mcp_server/` | What AI assistants talk to. Re-checks the person's access on **every** call and searches only their allowed matters. |
+| Database setup | `backend/scripts/` | A one-shot `migrate` step brings the schema up to date and gives each service its own limited database account; only it holds the owner's password. |
 | Edge | `deploy/` | Caddy (HTTPS, headers), server hardening, backups, deploy, monitoring. |
 
 ### Why matters cannot leak into each other

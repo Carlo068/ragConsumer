@@ -5,8 +5,9 @@ stack still works.
     python scripts/rotate_secret.py QDRANT_API_KEY
     python scripts/rotate_secret.py POSTGRES_PASSWORD --dry-run
 
-Secrets: SESSION_SECRET, POSTGRES_PASSWORD, MINIO_ROOT_PASSWORD,
-BACKEND_MINIO_SECRET_KEY, WORKER_MINIO_SECRET_KEY, QDRANT_API_KEY.
+Secrets: SESSION_SECRET, POSTGRES_PASSWORD, BACKEND_DB_PASSWORD, MCP_DB_PASSWORD,
+WORKER_DB_PASSWORD, MINIO_ROOT_PASSWORD, BACKEND_MINIO_SECRET_KEY,
+WORKER_MINIO_SECRET_KEY, QDRANT_API_KEY.
 
 In production add the compose files:
     COMPOSE_FILES="docker-compose.yml docker-compose.prod.yml" python scripts/rotate_secret.py ...
@@ -37,8 +38,20 @@ SECRETS = {
         "recreate": ["backend"],
     },
     "POSTGRES_PASSWORD": {
-        "effect": "The password is changed inside the database too; the backend, worker and MCP server restart (about a minute).",
-        "recreate": ["backend", "ingestion-worker", "mcp_server"],
+        "effect": "The database owner's password is changed inside the database too. Only the one-shot migrate step uses it, so nothing running restarts.",
+        "recreate": ["migrate"],
+    },
+    "BACKEND_DB_PASSWORD": {
+        "effect": "The web API's database account gets a new password (set inside the database by the migrate step); the backend restarts (about a minute).",
+        "recreate": ["migrate", "backend"],
+    },
+    "MCP_DB_PASSWORD": {
+        "effect": "The AI connection's database account gets a new password; the MCP server restarts (about a minute).",
+        "recreate": ["migrate", "mcp_server"],
+    },
+    "WORKER_DB_PASSWORD": {
+        "effect": "The document worker's database account gets a new password; the worker restarts (about a minute).",
+        "recreate": ["migrate", "ingestion-worker"],
     },
     "MINIO_ROOT_PASSWORD": {
         "effect": "Only the administration account changes; MinIO restarts briefly and the service accounts are re-applied.",
@@ -97,17 +110,23 @@ def write_env_value(name: str, value: str) -> Path:
 
 
 def python_in(service: str, code: str) -> bool:
-    result = compose("exec", "-T", service, "python", "-c", code, capture=True, check=False)
+    if service == "migrate":  # a one-shot service: run a throwaway copy of it
+        result = compose("run", "--rm", "--no-deps", "-T", "--entrypoint", "python", service, "-c", code, capture=True, check=False)
+    else:
+        result = compose("exec", "-T", service, "python", "-c", code, capture=True, check=False)
     return result.returncode == 0
+
+
+CONNECT = "import os; from sqlalchemy import create_engine, text; create_engine(os.environ['DATABASE_URL']).connect().execute(text('select 1'))"
 
 
 # A real use of the rotated secret, from inside the stack.
 CHECKS = {
     "SESSION_SECRET": ("backend", "import app.main"),
-    "POSTGRES_PASSWORD": (
-        "backend",
-        "from sqlalchemy import text; from app.db import engine; engine.connect().execute(text('select 1'))",
-    ),
+    "POSTGRES_PASSWORD": ("migrate", CONNECT),  # connects as the owner
+    "BACKEND_DB_PASSWORD": ("backend", CONNECT),
+    "MCP_DB_PASSWORD": ("mcp_server", CONNECT),
+    "WORKER_DB_PASSWORD": ("ingestion-worker", CONNECT),
     "MINIO_ROOT_PASSWORD": (
         "backend",
         "from app.storage import minio_client, BUCKET_NAME; assert minio_client.bucket_exists(BUCKET_NAME)",

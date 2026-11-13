@@ -1,9 +1,11 @@
+# Every secret below is required: compose refuses to start if one is missing.
+# Create them with `python scripts/generate_env.py` (see .env.example).
 services:
   postgres:
     image: postgres:16
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (python scripts/generate_env.py)}
       POSTGRES_DB: ${POSTGRES_DB:-ragconsumer}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -20,8 +22,11 @@ services:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      # The root account is only for administration (minio-init, the console).
+      # No application uses it: the backend and the worker each have their own
+      # limited user, created by minio-init below.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env (python scripts/generate_env.py)}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env (python scripts/generate_env.py)}
       # Registers a webhook notification target named INGEST -- minio-init
       # subscribes the bucket to it below.
       MINIO_NOTIFY_WEBHOOK_ENABLE_INGEST: "on"
@@ -37,16 +42,29 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
 
-  # One-shot: creates the bucket and wires up the s3:ObjectCreated webhook to
-  # ingestion-worker, then exits. Safe to re-run (mb/event add are idempotent).
+  # One-shot: creates the bucket, the two limited service users and their
+  # policies, and wires up the s3:ObjectCreated webhook to ingestion-worker,
+  # then exits. Safe to re-run: every step is idempotent, and a rerun also
+  # applies a changed service secret.
+  #   backend  -> may add and delete documents, and list them (delete a matter)
+  #   worker   -> may only read documents
   minio-init:
     image: minio/mc:latest
     depends_on:
       - minio
+    volumes:
+      - ./minio/policies:/policies:ro
     entrypoint: >
       /bin/sh -c "
-        until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 2; done;
+        set -e;
+        until mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do sleep 2; done;
         mc mb --ignore-existing local/documents;
+        mc admin policy create local backend-documents /policies/backend.json;
+        mc admin policy create local worker-documents /policies/worker.json;
+        mc admin user add local ${BACKEND_MINIO_ACCESS_KEY:?Set BACKEND_MINIO_ACCESS_KEY in .env} ${BACKEND_MINIO_SECRET_KEY:?Set BACKEND_MINIO_SECRET_KEY in .env};
+        mc admin user add local ${WORKER_MINIO_ACCESS_KEY:?Set WORKER_MINIO_ACCESS_KEY in .env} ${WORKER_MINIO_SECRET_KEY:?Set WORKER_MINIO_SECRET_KEY in .env};
+        mc admin policy attach local backend-documents --user ${BACKEND_MINIO_ACCESS_KEY} || true;
+        mc admin policy attach local worker-documents --user ${WORKER_MINIO_ACCESS_KEY} || true;
         mc event add local/documents arn:minio:sqs::INGEST:webhook --event put || true;
         exit 0
       "
@@ -54,33 +72,33 @@ services:
   # Internal only: no published ports, so nothing outside the Docker network
   # can reach it. Every request needs the API key, and JWT mode lets the MCP
   # server present short-lived read-only tokens limited to a person's own
-  # matters (one Qdrant collection per matter). The dev default key must be
-  # replaced in production (KAN-73).
+  # matters (one Qdrant collection per matter).
   qdrant:
     image: qdrant/qdrant:v1.19
     environment:
-      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env (python scripts/generate_env.py)}
       QDRANT__SERVICE__JWT_RBAC: "true"
     volumes:
       - qdrant_data:/qdrant/storage
 
   backend:
     build: ./backend
-    env_file: ./backend/.env
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env (python scripts/generate_env.py)}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ACCESS_KEY: ${BACKEND_MINIO_ACCESS_KEY:?Set BACKEND_MINIO_ACCESS_KEY in .env}
+      MINIO_SECRET_KEY: ${BACKEND_MINIO_SECRET_KEY:?Set BACKEND_MINIO_SECRET_KEY in .env}
       MINIO_SECURE: "False"
       MINIO_BUCKET: documents
       QDRANT_URL: http://qdrant:6333
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
       qdrant:
         condition: service_started
     ports:
@@ -89,17 +107,19 @@ services:
   ingestion-worker:
     build: ./ingestion_worker
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ACCESS_KEY: ${WORKER_MINIO_ACCESS_KEY:?Set WORKER_MINIO_ACCESS_KEY in .env}
+      MINIO_SECRET_KEY: ${WORKER_MINIO_SECRET_KEY:?Set WORKER_MINIO_SECRET_KEY in .env}
       MINIO_SECURE: "False"
       MINIO_BUCKET: documents
       QDRANT_URL: http://qdrant:6333
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
     depends_on:
       postgres:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
       qdrant:
         condition: service_started
     ports:
@@ -113,9 +133,10 @@ services:
   mcp_server:
     build: ./mcp_server
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ragconsumer}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ragconsumer}
       QDRANT_URL: http://qdrant:6333
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-only-qdrant-key-replace-before-production}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
+      PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:8002}
     depends_on:
       postgres:
         condition: service_healthy

@@ -143,3 +143,28 @@ class McpActiveCollection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+
+
+class ApiToken(Base):
+    """A personal access token for the MCP server. Lets one person's AI
+    assistant act as that person, and nothing more: it carries the user's own
+    permissions, never an admin's."""
+
+    __tablename__ = "api_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(255))
+    # SHA-256 of the token. The raw token is shown once at creation and never
+    # stored, so a database leak yields nothing usable. The token is 256 bits
+    # of randomness, so a plain fast hash is enough (no password-style KDF).
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    # First characters of the token, so a person can tell their tokens apart
+    # in the list without the list ever containing a usable secret.
+    prefix: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    expires_at: Mapped[datetime]
+    last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)

@@ -86,6 +86,27 @@ class MemberRoleUpdate(BaseModel):
     role: CollectionRole
 
 
+class TokenCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class TokenOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    prefix: str
+    created_at: datetime
+    expires_at: datetime
+    last_used_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class TokenCreated(TokenOut):
+    # Shown exactly once. Only a hash is stored, so it can't be retrieved later.
+    token: str
+
+
 class McpActiveCollectionOut(BaseModel):
     collection_id: uuid.UUID | None
     collection_name: str | None

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.routers import admin, auth, collections, documents, invites, mcp_config, members
+from app.routers import admin, auth, collections, documents, invites, mcp_config, members, tokens
 from app.storage import ensure_bucket
 
 app = FastAPI()
@@ -38,6 +38,7 @@ app.include_router(members.router)
 app.include_router(mcp_config.router)
 app.include_router(admin.router)
 app.include_router(invites.router)
+app.include_router(tokens.router)
 
 
 @app.get("/")

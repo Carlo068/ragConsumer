@@ -22,5 +22,9 @@ class Settings(BaseSettings):
     INVITE_TTL_HOURS: int = 72
     MIN_PASSWORD_LENGTH: int = 12
 
+    # MCP personal access tokens
+    TOKEN_TTL_DAYS: int = 90
+    MAX_ACTIVE_TOKENS_PER_USER: int = 10
+
 
 settings = Settings()

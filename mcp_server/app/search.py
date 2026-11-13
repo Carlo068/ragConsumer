@@ -20,16 +20,21 @@ NO_ACTIVE_COLLECTION_MESSAGE = (
 )
 
 
-def get_active_collection_id() -> str | None:
-    # Read fresh on every call (not cached) -- this is what lets toggling the
-    # active collection in the frontend take effect immediately, with no
-    # mcp_server restart. Still never accepted as a tool argument: the only
-    # thing that can change what this server exposes is this row, set via the
-    # authenticated web app (require_collection_membership-gated), never by
-    # anything an MCP client sends.
+def get_active_collection_id(user_id: str) -> str | None:
+    # Read fresh on every call (not cached), so toggling the active collection
+    # in the frontend takes effect immediately. Never accepted as a tool
+    # argument. Interim rule until each person picks their own matter: the
+    # shared selection is only honoured for someone who is a member of it, so
+    # a token can never reach a matter its owner has no access to. Anyone else
+    # gets the same answer as "nothing selected" and learns nothing.
     with _engine.connect() as conn:
         row = conn.execute(
-            text("SELECT collection_id FROM mcp_active_collection WHERE id = 1")
+            text(
+                "SELECT a.collection_id FROM mcp_active_collection a "
+                "JOIN collection_members m ON m.collection_id = a.collection_id "
+                "WHERE a.id = 1 AND m.user_id = :user_id"
+            ),
+            {"user_id": user_id},
         ).first()
     return str(row[0]) if row and row[0] is not None else None
 
@@ -40,8 +45,8 @@ def _collection_filter(collection_id: str) -> models.FieldCondition:
     )
 
 
-def search(query: str, limit: int = 5) -> list[dict]:
-    collection_id = get_active_collection_id()
+def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
+    collection_id = get_active_collection_id(user_id)
     if collection_id is None:
         return [{"message": NO_ACTIVE_COLLECTION_MESSAGE}]
 
@@ -78,8 +83,8 @@ def search(query: str, limit: int = 5) -> list[dict]:
     ]
 
 
-def get_content(chunk_id: str) -> str | None:
-    collection_id = get_active_collection_id()
+def get_content(user_id: str, chunk_id: str) -> str | None:
+    collection_id = get_active_collection_id(user_id)
     if collection_id is None:
         return NO_ACTIVE_COLLECTION_MESSAGE
 
@@ -95,8 +100,8 @@ def get_content(chunk_id: str) -> str | None:
     return point.payload["text"]
 
 
-def get_document(doc_id: str) -> str | None:
-    collection_id = get_active_collection_id()
+def get_document(user_id: str, doc_id: str) -> str | None:
+    collection_id = get_active_collection_id(user_id)
     if collection_id is None:
         return NO_ACTIVE_COLLECTION_MESSAGE
 
@@ -117,8 +122,8 @@ def get_document(doc_id: str) -> str | None:
     return "\n\n".join(p.payload["text"] for p in points)
 
 
-def list_documents() -> list[dict]:
-    collection_id = get_active_collection_id()
+def list_documents(user_id: str) -> list[dict]:
+    collection_id = get_active_collection_id(user_id)
     if collection_id is None:
         return [{"message": NO_ACTIVE_COLLECTION_MESSAGE}]
 

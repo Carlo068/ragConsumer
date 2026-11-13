@@ -116,6 +116,10 @@ services:
       MINIO_BUCKET: documents
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
+      # The worker and the MCP server must use the same two values; changing
+      # them means re-indexing (backend/scripts/reindex_all.py).
+      DENSE_MODEL: ${DENSE_MODEL:-jinaai/jina-embeddings-v2-base-es}
+      BM25_LANGUAGE: ${BM25_LANGUAGE:-spanish}
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,6 +142,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
       PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:8002}
+      DENSE_MODEL: ${DENSE_MODEL:-jinaai/jina-embeddings-v2-base-es}
+      BM25_LANGUAGE: ${BM25_LANGUAGE:-spanish}
     depends_on:
       postgres:
         condition: service_healthy

@@ -79,3 +79,4 @@ websockets==17.0.1
 xxhash==4.0.0
 zstandard==0.25.0
 ocrmypdf==17.13.0
+extract-msg==0.58.2

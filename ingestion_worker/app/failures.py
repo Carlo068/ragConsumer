@@ -9,6 +9,10 @@ class NoTextFound(Exception):
     """The file was read but contained no text (typically a scan or a photo)."""
 
 
+class UnreadableFile(Exception):
+    """The file is damaged, protected, or not really the format it claims."""
+
+
 class OcrFailed(Exception):
     """Text recognition could not process the file (or ran out of time)."""
 
@@ -42,6 +46,8 @@ _UNREADABLE_ERRORS = {
 def failure_reason(exc: BaseException) -> str:
     if isinstance(exc, NoTextFound):
         return NO_TEXT
+    if isinstance(exc, UnreadableFile):
+        return UNREADABLE
     if isinstance(exc, OcrFailed):
         return TIMED_OUT if str(exc) == "timed out" else UNREADABLE
     if type(exc).__name__ in _UNREADABLE_ERRORS:

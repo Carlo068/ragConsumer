@@ -3,16 +3,15 @@ import time
 
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.pool import StaticPool
 
 from app.queue import Runner, claim_next, requeue_interrupted
 
 
 @pytest.fixture
-def engine():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+def engine(tmp_path):
+    # A file database (not :memory:), because the runner thread and the test
+    # thread must not share one connection.
+    engine = create_engine(f"sqlite:///{tmp_path / 'queue.db'}", connect_args={"check_same_thread": False})
     with engine.begin() as conn:
         conn.execute(
             text(

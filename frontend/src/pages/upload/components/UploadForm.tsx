@@ -36,7 +36,7 @@ export function UploadForm({ onUpload, uploading }: UploadFormProps) {
             id="file"
             ref={inputRef}
             type="file"
-            accept=".pdf,.docx,.doc,.txt,.md"
+            accept=".pdf,.docx,.doc,.eml,.msg,.txt,.md"
             onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
           />
         </div>

@@ -16,7 +16,7 @@ const mockedService = vi.mocked(collectionsService)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockedService.list.mockResolvedValue([{ id: "1", name: "Doe Estate", role: "owner" as const, ai_enabled: false }])
+  mockedService.list.mockResolvedValue([{ id: "1", name: "Doe Estate", role: "owner" as const, ai_enabled: false, document_count: 0, ready_count: 0, failed_count: 0 }])
 })
 
 describe("useCollections", () => {
@@ -27,7 +27,7 @@ describe("useCollections", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    expect(result.current.collections).toEqual([{ id: "1", name: "Doe Estate", role: "owner" as const, ai_enabled: false }])
+    expect(result.current.collections).toEqual([{ id: "1", name: "Doe Estate", role: "owner" as const, ai_enabled: false, document_count: 0, ready_count: 0, failed_count: 0 }])
     expect(result.current.error).toBeNull()
   })
 
@@ -49,8 +49,8 @@ describe("useCollections", () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     mockedService.list.mockResolvedValue([
-      { id: "1", name: "Doe Estate", role: "owner" as const, ai_enabled: false },
-      { id: "2", name: "New One", role: "owner" as const, ai_enabled: false },
+      { id: "1", name: "Doe Estate", role: "owner" as const, ai_enabled: false, document_count: 0, ready_count: 0, failed_count: 0 },
+      { id: "2", name: "New One", role: "owner" as const, ai_enabled: false, document_count: 0, ready_count: 0, failed_count: 0 },
     ])
 
     await act(async () => {

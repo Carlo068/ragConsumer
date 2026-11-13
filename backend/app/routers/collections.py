@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app import audit
@@ -14,6 +14,7 @@ from app.models import (
     CollectionMember,
     CollectionRole,
     Document,
+    DocumentStatus,
     User,
 )
 from app.schemas import CollectionCreate, CollectionOut, CollectionUpdate
@@ -21,6 +22,23 @@ from app.storage import delete_objects_by_prefix
 from app.vectorstore import delete_matter_vectors
 
 router = APIRouter(prefix="/collections", tags=["collections"])
+
+
+def document_counts(db: Session, collection_ids: list[uuid.UUID]) -> dict[uuid.UUID, tuple[int, int, int]]:
+    """{matter id: (files, ready, failed)} in one query."""
+    if not collection_ids:
+        return {}
+    rows = db.execute(
+        select(
+            Document.collection_id,
+            func.count(),
+            func.coalesce(func.sum(case((Document.status == DocumentStatus.ready, 1), else_=0)), 0),
+            func.coalesce(func.sum(case((Document.status == DocumentStatus.failed, 1), else_=0)), 0),
+        )
+        .where(Document.collection_id.in_(collection_ids))
+        .group_by(Document.collection_id)
+    ).all()
+    return {cid: (total, ready, failed) for cid, total, ready, failed in rows}
 
 
 @router.get("", response_model=list[CollectionOut])
@@ -39,8 +57,17 @@ def list_collections(
         .where(CollectionMember.user_id == current_user.id)
         .order_by(Collection.name)
     ).all()
+    counts = document_counts(db, [c.id for c, _, _ in rows])
     return [
-        CollectionOut(id=c.id, name=c.name, role=role, ai_enabled=selected is not None)
+        CollectionOut(
+            id=c.id,
+            name=c.name,
+            role=role,
+            ai_enabled=selected is not None,
+            document_count=counts.get(c.id, (0, 0, 0))[0],
+            ready_count=counts.get(c.id, (0, 0, 0))[1],
+            failed_count=counts.get(c.id, (0, 0, 0))[2],
+        )
         for c, role, selected in rows
     ]
 
@@ -94,8 +121,15 @@ def rename_collection(
     db.commit()
     db.refresh(collection)
     ai_enabled = db.get(AiMatterSelection, (current_user.id, collection_id)) is not None
+    total, ready, failed = document_counts(db, [collection.id]).get(collection.id, (0, 0, 0))
     return CollectionOut(
-        id=collection.id, name=collection.name, role=member.role, ai_enabled=ai_enabled
+        id=collection.id,
+        name=collection.name,
+        role=member.role,
+        ai_enabled=ai_enabled,
+        document_count=total,
+        ready_count=ready,
+        failed_count=failed,
     )
 
 

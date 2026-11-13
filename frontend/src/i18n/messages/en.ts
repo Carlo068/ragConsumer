@@ -33,10 +33,10 @@ export const en = {
     ownerHint: "can also manage the collection and its members",
   },
   status: {
-    uploaded: "Uploaded",
-    processing: "Processing",
-    ready: "Ready",
-    failed: "Failed",
+    uploaded: "Waiting",
+    processing: "Reading…",
+    ready: "Ready to search",
+    failed: "Couldn't be read",
   },
   login: {
     title: "Sign in",
@@ -69,7 +69,19 @@ export const en = {
     newTitle: "New collection",
     create: "Create",
     aiSwitch: "Let my AI search {name}",
-    aiSwitchTitle: "Let my AI search this matter",
+    aiSwitchTitle: "When this is on, your AI assistant can search the files in this matter.",
+    aiOn: "AI on",
+    aiOff: "AI off",
+    intro:
+      "Turn on the switch of a matter so your own AI assistant can search its files. What you turn on is only for you.",
+    empty: "You don't have any collections yet. Create the first one with the \"New\" button.",
+    noFiles: "No files yet",
+    fileCount_one: "{count} file",
+    fileCount_other: "{count} files",
+    readyCount_one: "{count} ready",
+    readyCount_other: "{count} ready",
+    failedCount_one: "{count} couldn't be read",
+    failedCount_other: "{count} couldn't be read",
     renameLabel: "Rename collection",
     deleteLabel: "Delete collection",
     renameTitle: 'Rename "{name}"',
@@ -79,7 +91,7 @@ export const en = {
     loadFailed: "Failed to load collections",
   },
   upload: {
-    title: "Upload",
+    subtitle: "Files in this collection",
     loadingCollection: "Loading collection...",
     viewOnly: "You can view this collection, but only editors and owners can add or remove files.",
     loadingDocuments: "Loading documents...",
@@ -89,7 +101,9 @@ export const en = {
     submit: "Upload",
     submitting: "Uploading...",
     failed: "Upload failed",
-    empty: "No documents uploaded yet.",
+    emptyCanUpload:
+      "No files yet. Choose a file above and press \"Upload\" to add the first one.",
+    emptyViewOnly: "This collection has no files yet.",
     retry: "Try again",
     deleteTitle: 'Delete "{name}"?',
     deleteDescription:
@@ -142,7 +156,7 @@ export const en = {
     createFailed: "Could not create the access key",
     newKey: "Your new key {name}. Copy it now: this is the only time it is shown. The connection commands below already include it.",
     keyLabel: "Access key",
-    none: "You have no access keys yet.",
+    none: "You have no access keys yet. Create one above to connect your AI assistant.",
     detail: "Created {created} · Expires {expires} · {used}",
     lastUsed: "Last used {date}",
     neverUsed: "Never used",
@@ -220,13 +234,15 @@ export const en = {
     // One per backend error code (backend/app/error_codes.json).
     not_authenticated: "Your session has ended. Please sign in again.",
     admin_required: "Only the firm's administrator can do that.",
-    matter_not_found: "That collection doesn't exist, or you don't have access to it.",
-    role_required: "Your role in this collection doesn't allow that.",
+    matter_not_found:
+      "That collection doesn't exist, or you don't have access to it. Go back to the list and choose another.",
+    role_required:
+      "Your role in this collection doesn't allow that. If you need it, ask an owner of the collection to change your role.",
     email_taken: "Someone with that email already has an account.",
     invite_not_found: "That invitation no longer exists.",
-    invalid_credentials: "The email or password is not correct.",
+    invalid_credentials: "The email or password is not correct. Check them and try again.",
     file_needs_name: "The file needs a name.",
-    file_too_large: "That file is too large. The limit is {max_mb} MB.",
+    file_too_large: "That file is too large. The limit is {max_mb} MB. Split it or reduce its size.",
     document_not_found: "That file no longer exists.",
     document_busy: "This file is being processed right now. Try again in a moment.",
     invite_invalid: "This invitation link is invalid or has expired.",
@@ -235,7 +251,8 @@ export const en = {
     no_account_for_email:
       "There is no account with that email. Ask your firm's administrator to invite them first.",
     already_member: "That person already has access.",
-    last_owner: "A collection must keep at least one owner.",
+    last_owner:
+      "A collection must keep at least one owner. Make someone else an owner first.",
     too_many_tokens: "You already have {count} access keys. Revoke one you no longer use first.",
     token_not_found: "That access key no longer exists.",
     // Generic fallbacks by HTTP status, for errors without a code.

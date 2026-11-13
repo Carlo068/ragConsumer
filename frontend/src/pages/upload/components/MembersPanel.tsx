@@ -58,7 +58,7 @@ export function MembersPanel({
         {members.map((member) => {
           const isMe = member.user_id === currentUserId
           return (
-            <div key={member.user_id} className="flex items-center justify-between gap-3 text-sm">
+            <div key={member.user_id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span>
                 {member.email}
                 {isMe && <span className="text-muted-foreground"> {t("common.you")}</span>}

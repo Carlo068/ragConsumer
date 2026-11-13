@@ -29,10 +29,10 @@ export function UploadPage() {
     <div className="mx-auto max-w-2xl p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{t("upload.title")}</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-2xl font-semibold">
             {collection?.name ?? t("upload.loadingCollection")}
-          </p>
+          </h1>
+          <p className="text-muted-foreground text-sm">{t("upload.subtitle")}</p>
         </div>
         <Button
           variant="outline"
@@ -60,6 +60,7 @@ export function UploadPage() {
         onDelete={remove}
         canDelete={canEditFiles(collection?.role)}
         canRetry={canEditFiles(collection?.role)}
+        canUpload={canEditFiles(collection?.role)}
         onRetry={retry}
       />
 

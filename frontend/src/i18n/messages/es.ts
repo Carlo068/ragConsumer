@@ -34,10 +34,10 @@ export const es: Messages = {
     ownerHint: "también puede administrar el asunto y a sus integrantes",
   },
   status: {
-    uploaded: "Recibido",
-    processing: "Procesando",
-    ready: "Listo",
-    failed: "Con error",
+    uploaded: "En espera",
+    processing: "Leyendo…",
+    ready: "Listo para buscar",
+    failed: "No se pudo leer",
   },
   login: {
     title: "Iniciar sesión",
@@ -70,7 +70,20 @@ export const es: Messages = {
     newTitle: "Nuevo asunto",
     create: "Crear",
     aiSwitch: "Permitir que mi IA busque en {name}",
-    aiSwitchTitle: "Permitir que mi IA busque en este asunto",
+    aiSwitchTitle:
+      "Cuando está activada, su asistente de IA puede buscar en los archivos de este asunto.",
+    aiOn: "IA activada",
+    aiOff: "IA desactivada",
+    intro:
+      "Active el interruptor de un asunto para que su propio asistente de IA pueda buscar en sus archivos. Lo que usted active es solo para usted.",
+    empty: "Todavía no tiene asuntos. Cree el primero con el botón «Nuevo».",
+    noFiles: "Sin archivos todavía",
+    fileCount_one: "{count} archivo",
+    fileCount_other: "{count} archivos",
+    readyCount_one: "{count} listo",
+    readyCount_other: "{count} listos",
+    failedCount_one: "{count} no se pudo leer",
+    failedCount_other: "{count} no se pudieron leer",
     renameLabel: "Cambiar el nombre del asunto",
     deleteLabel: "Eliminar el asunto",
     renameTitle: 'Cambiar el nombre de "{name}"',
@@ -80,7 +93,7 @@ export const es: Messages = {
     loadFailed: "No se pudieron cargar los asuntos",
   },
   upload: {
-    title: "Documentos",
+    subtitle: "Archivos de este asunto",
     loadingCollection: "Cargando el asunto...",
     viewOnly:
       "Usted puede ver este asunto, pero solo los editores y los responsables pueden agregar o quitar archivos.",
@@ -91,7 +104,9 @@ export const es: Messages = {
     submit: "Subir",
     submitting: "Subiendo...",
     failed: "No se pudo subir el archivo",
-    empty: "Todavía no se ha subido ningún documento.",
+    emptyCanUpload:
+      "Todavía no hay archivos. Elija un archivo arriba y presione «Subir» para agregar el primero.",
+    emptyViewOnly: "Este asunto todavía no tiene archivos.",
     retry: "Intentar de nuevo",
     deleteTitle: '¿Eliminar "{name}"?',
     deleteDescription:
@@ -144,7 +159,7 @@ export const es: Messages = {
     newKey:
       "Su nueva llave {name}. Cópiela ahora: esta es la única vez que se muestra. Los comandos de conexión de abajo ya la incluyen.",
     keyLabel: "Llave de acceso",
-    none: "Todavía no tiene llaves de acceso.",
+    none: "Todavía no tiene llaves de acceso. Cree una arriba para conectar su asistente de IA.",
     detail: "Creada el {created} · Vence el {expires} · {used}",
     lastUsed: "Último uso: {date}",
     neverUsed: "Nunca se ha usado",
@@ -222,13 +237,16 @@ export const es: Messages = {
   errors: {
     not_authenticated: "Su sesión terminó. Inicie sesión de nuevo.",
     admin_required: "Solo el administrador del despacho puede hacer eso.",
-    matter_not_found: "Ese asunto no existe o usted no tiene acceso a él.",
-    role_required: "Su función en este asunto no permite hacer eso.",
+    matter_not_found:
+      "Ese asunto no existe o usted no tiene acceso a él. Vuelva a la lista y elija otro.",
+    role_required:
+      "Su función en este asunto no permite hacer eso. Si lo necesita, pida a un responsable del asunto que la cambie.",
     email_taken: "Ya existe una cuenta con ese correo.",
     invite_not_found: "Esa invitación ya no existe.",
-    invalid_credentials: "El correo o la contraseña no son correctos.",
+    invalid_credentials: "El correo o la contraseña no son correctos. Revíselos e intente de nuevo.",
     file_needs_name: "El archivo necesita un nombre.",
-    file_too_large: "Ese archivo es demasiado grande. El límite es de {max_mb} MB.",
+    file_too_large:
+      "Ese archivo es demasiado grande. El límite es de {max_mb} MB. Divídalo o reduzca su tamaño.",
     document_not_found: "Ese archivo ya no existe.",
     document_busy: "Este archivo se está procesando en este momento. Intente de nuevo en un momento.",
     invite_invalid: "Este enlace de invitación no es válido o ya venció.",
@@ -237,7 +255,8 @@ export const es: Messages = {
     no_account_for_email:
       "No hay ninguna cuenta con ese correo. Pida al administrador del despacho que la invite primero.",
     already_member: "Esa persona ya tiene acceso.",
-    last_owner: "Un asunto debe conservar al menos un responsable.",
+    last_owner:
+      "Un asunto debe conservar al menos un responsable. Primero nombre a otra persona como responsable.",
     too_many_tokens: "Ya tiene {count} llaves de acceso. Primero revoque una que ya no use.",
     token_not_found: "Esa llave de acceso ya no existe.",
     status403: "No tiene permiso para hacer eso.",

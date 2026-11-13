@@ -1,10 +1,12 @@
 import { createContext } from "react"
-import { DEFAULT_LOCALE, type Locale, type Translate } from "./core"
+import { DEFAULT_LOCALE, type Locale, type Translate, type TranslatePlural } from "./core"
 
 export interface I18nValue {
   locale: Locale
   setLocale: (locale: Locale) => void
   t: Translate
+  // A message that depends on a number: tp("collections.fileCount", 3) -> "3 archivos".
+  tp: TranslatePlural
   // Dates from the server are naive UTC timestamps; these show them in the
   // reader's language and time zone.
   formatDate: (value: string) => string

@@ -8,6 +8,10 @@ export interface Collection {
   // Whether the signed-in user's own AI searches this matter. Per person:
   // switching it never affects a colleague.
   ai_enabled: boolean
+  // For the list: "12 files · 10 ready".
+  document_count: number
+  ready_count: number
+  failed_count: number
 }
 
 // The server enforces these same rules on every request; these helpers only

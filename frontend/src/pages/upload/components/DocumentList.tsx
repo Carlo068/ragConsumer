@@ -12,6 +12,8 @@ interface DocumentListProps {
   canDelete: boolean
   onRetry?: (documentId: string) => void
   canRetry?: boolean
+  // Only used to tell an empty list what to do next.
+  canUpload?: boolean
 }
 
 const FAILURE_CODES = ["no_text", "unreadable", "timed_out", "index_outdated", "unexpected"]
@@ -28,10 +30,11 @@ export function DocumentList({
   canDelete,
   onRetry,
   canRetry = false,
+  canUpload = false,
 }: DocumentListProps) {
   const { t } = useI18n()
   if (documents.length === 0) {
-    return <p className="text-muted-foreground text-sm">{t("upload.empty")}</p>
+    return <p className="text-muted-foreground text-sm">{canUpload ? t("upload.emptyCanUpload") : t("upload.emptyViewOnly")}</p>
   }
 
   return (

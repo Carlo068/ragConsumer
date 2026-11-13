@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { I18nContext, type I18nValue } from "./context"
-import { DEFAULT_LOCALE, LOCALES, describeError, translate, type Locale, type Translate } from "./core"
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  describeError,
+  translate,
+  translatePlural,
+  type Locale,
+  type Translate,
+} from "./core"
 
 const STORAGE_KEY = "locale"
 
@@ -38,6 +46,7 @@ export function I18nProvider({ children, locale: initial }: { children: ReactNod
         }
       },
       t,
+      tp: (key, count, params) => translatePlural(locale, key, count, params),
       formatDate: (v) => toDate(v).toLocaleDateString(tag),
       formatDateTime: (v) => toDate(v).toLocaleString(tag),
       errorText: (err, fallbackKey) => describeError(err, t, fallbackKey),

@@ -22,7 +22,7 @@ export function ConnectPage() {
         <div>
           <h1 className="text-2xl font-semibold">Connect</h1>
           <p className="text-muted-foreground text-sm">
-            One shared MCP server for every collection
+            Let your own AI assistant search your matters
           </p>
         </div>
         <Button
@@ -38,13 +38,15 @@ export function ConnectPage() {
         </CardHeader>
         <CardContent className="text-muted-foreground flex flex-col gap-2 text-sm">
           <p>
-            This project runs one shared MCP server, always at this same
-            address. It only ever exposes whichever single collection is
-            currently toggled on -- switch that from the collections list.
+            Your AI assistant connects to one address and signs in with your
+            own access key. It can only search the matters you have turned on
+            for it on the collections list, and only while you still have
+            access to them.
           </p>
           <p>
-            Only one collection can be active at a time. Turn it off there
-            when you're done to keep it private.
+            What you turn on here affects only your own AI, never a
+            colleague's. Turn a matter off there whenever you want to keep it
+            private.
           </p>
         </CardContent>
       </Card>

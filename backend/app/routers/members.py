@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
-from app.models import CollectionMember, CollectionRole, User
+from app.models import AiMatterSelection, CollectionMember, CollectionRole, User
 from app.schemas import MemberAdd, MemberOut, MemberRoleUpdate
 
 router = APIRouter(prefix="/collections/{collection_id}/members", tags=["members"])
@@ -132,4 +132,10 @@ def remove_member(
         raise HTTPException(status.HTTP_409_CONFLICT, LAST_OWNER)
 
     db.delete(member)
+    # Tidy up their AI selection too. Not what protects the matter (the MCP
+    # server re-checks membership on every call) but stale rows would
+    # otherwise silently reactivate if they were ever re-added.
+    selection = db.get(AiMatterSelection, (user_id, collection_id))
+    if selection is not None:
+        db.delete(selection)
     db.commit()

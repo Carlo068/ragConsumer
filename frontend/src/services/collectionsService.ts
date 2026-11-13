@@ -8,4 +8,8 @@ export const collectionsService = {
   rename: (id: string, payload: UpdateCollectionRequest) =>
     apiClient.patch<Collection>(`/collections/${id}`, payload),
   remove: (id: string) => apiClient.delete(`/collections/${id}`),
+  setAiAccess: (id: string, enabled: boolean) =>
+    enabled
+      ? apiClient.put<void>(`/collections/${id}/ai-access`)
+      : apiClient.delete(`/collections/${id}/ai-access`),
 }

@@ -129,20 +129,23 @@ class Document(Base):
     collection: Mapped["Collection"] = relationship(back_populates="documents")
 
 
-class McpActiveCollection(Base):
-    """Singleton row (id is always 1): which collection the one shared MCP
-    server currently exposes. Read fresh by mcp_server on every tool call, so
-    toggling it here takes effect immediately with no restart."""
+class AiMatterSelection(Base):
+    """A matter this person has chosen to let their own AI search. Chosen per
+    person, so one lawyer's choice never changes what a colleague's AI sees.
 
-    __tablename__ = "mcp_active_collection"
+    This is a preference, not a permission: the MCP server only honours a row
+    while the person is still a member of the matter, so removing someone from
+    a matter cuts their AI off immediately whatever rows remain here."""
 
-    id: Mapped[int] = mapped_column(primary_key=True, default=1)
-    collection_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("collections.id", ondelete="SET NULL"), nullable=True
+    __tablename__ = "ai_matter_selections"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now()
+    collection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True
     )
+    selected_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class ApiToken(Base):

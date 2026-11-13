@@ -58,6 +58,8 @@ class CollectionOut(BaseModel):
     # The requesting user's own role on this collection. The UI uses it to
     # hide actions they can't perform; the server enforces it regardless.
     role: CollectionRole
+    # Whether this person's own AI currently searches this matter.
+    ai_enabled: bool
 
     class Config:
         from_attributes = True
@@ -105,15 +107,6 @@ class TokenOut(BaseModel):
 class TokenCreated(TokenOut):
     # Shown exactly once. Only a hash is stored, so it can't be retrieved later.
     token: str
-
-
-class McpActiveCollectionOut(BaseModel):
-    collection_id: uuid.UUID | None
-    collection_name: str | None
-
-
-class McpActiveCollectionSet(BaseModel):
-    collection_id: uuid.UUID | None
 
 
 class DocumentOut(BaseModel):

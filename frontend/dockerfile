@@ -13,6 +13,11 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 FROM base AS build
 COPY . .
+# Where the browser finds the API and the MCP server is fixed when the app is
+# built. The defaults suit local use; the production compose file overrides them.
+ARG VITE_API_BASE_URL=http://localhost:8000
+ARG VITE_MCP_BASE_URL=http://localhost:8002
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL VITE_MCP_BASE_URL=$VITE_MCP_BASE_URL
 RUN npm run build
 
 FROM nginx:alpine AS production

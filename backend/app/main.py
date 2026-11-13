@@ -2,12 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.config import settings
+from app.config import parse_origins, settings
 from app.errors import ApiError, api_error_handler
 from app.routers import admin, ai_access, auth, collections, documents, invites, limits, members, tokens
 from app.storage import ensure_bucket
 
-app = FastAPI()
+app = FastAPI(
+    docs_url="/docs" if settings.DOCS_ENABLED else None,
+    redoc_url="/redoc" if settings.DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if settings.DOCS_ENABLED else None,
+)
 app.add_exception_handler(ApiError, api_error_handler)
 
 
@@ -26,13 +30,15 @@ app.add_middleware(
     max_age=settings.SESSION_MAX_AGE_HOURS * 3600,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors_origins = parse_origins(settings.CORS_ORIGINS)
+if _cors_origins:  # none needed when everything is served from one address
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(auth.router)
 app.include_router(collections.router)

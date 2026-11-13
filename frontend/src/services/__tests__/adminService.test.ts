@@ -4,6 +4,7 @@ import { adminService } from "@/services/adminService"
 import { inviteService } from "@/services/inviteService"
 
 vi.mock("@/services/apiClient", () => ({
+  API_BASE_URL: "http://localhost:8000",
   apiClient: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }))
 

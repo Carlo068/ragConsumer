@@ -1,0 +1,55 @@
+# One public HTTPS address for everything. Caddy gets and renews the
+# certificate by itself (Let's Encrypt) for DOMAIN, redirects HTTP to HTTPS,
+# and sends each path to the right service on the private Docker network:
+#
+#   /        -> frontend (the web app)
+#   /api/*   -> backend  (the /api prefix is removed before it arrives)
+#   /mcp     -> mcp_server (what AI assistants connect to)
+#
+# Nothing else is reachable from outside: the database, object storage,
+# vector store and the ingestion worker have no public ports.
+#
+# DOMAIN defaults to "localhost", where Caddy uses its own local certificate
+# authority, so this exact file can be tried on a laptop.
+
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	handle_path /api/* {
+		# Slightly above the app's own upload limit (MAX_UPLOAD_MB), so oversized
+		# bodies are refused at the edge before they reach the application.
+		request_body {
+			max_size {$MAX_REQUEST_MB:64}MB
+		}
+		reverse_proxy backend:8000
+	}
+
+	# AI assistants use streaming responses, so don't buffer them.
+	handle /mcp* {
+		reverse_proxy mcp_server:8002 {
+			flush_interval -1
+		}
+	}
+	handle /.well-known/* {
+		reverse_proxy mcp_server:8002
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, text
 
 from app.config import settings
 from app.failures import NoTextFound, failure_reason
+from app.ocr import count_pdf_pages, needs_ocr, run_ocr
 
 # --- Postgres status updates ----------------------------------------------
 _engine = create_engine(settings.DATABASE_URL)
@@ -56,6 +57,22 @@ _recursive_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_over
 
 def convert_to_markdown(path: str) -> str:
     return _converter.convert(path).text_content
+
+
+def convert_with_ocr(path: str) -> str:
+    """Convert a file to markdown, running OCR first when it is a scanned PDF."""
+    markdown_text = convert_to_markdown(path)
+    if path.lower().endswith(".pdf") and needs_ocr(
+        markdown_text, count_pdf_pages(path), settings.OCR_MIN_CHARS_PER_PAGE
+    ):
+        ocr_path = path + ".ocr.pdf"
+        try:
+            run_ocr(path, ocr_path, settings.OCR_LANGUAGES, settings.OCR_TIMEOUT_SECONDS)
+            markdown_text = convert_to_markdown(ocr_path)
+        finally:
+            if os.path.exists(ocr_path):
+                os.remove(ocr_path)
+    return markdown_text
 
 
 def chunk_markdown(markdown_text: str) -> list[str]:
@@ -182,7 +199,7 @@ def process_document(job) -> None:
     local_path = None
     try:
         local_path = download_to_temp(settings.MINIO_BUCKET, job.object_key, job.filename)
-        markdown_text = convert_to_markdown(local_path)
+        markdown_text = convert_with_ocr(local_path)
         chunks = chunk_markdown(markdown_text)
         if not chunks:
             # Reading "succeeded" but found nothing to search. Saying "ready"

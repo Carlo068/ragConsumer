@@ -65,6 +65,9 @@ if [[ "$SKIP_DOCKER" != "1" ]]; then
     bash -c "! docker ps --format '{{.Names}} {{.Ports}}' | grep -E 'postgres|minio|qdrant|backend|worker|mcp' | grep -q '0\.0\.0\.0'"
 fi
 
+echo "Logs"
+check "system logs are persistent and capped (journald)" bash -c "grep -q '^Storage=persistent' /etc/systemd/journald.conf.d/ragconsumer.conf && grep -q '^SystemMaxUse=' /etc/systemd/journald.conf.d/ragconsumer.conf && grep -q '^MaxRetentionSec=90day' /etc/systemd/journald.conf.d/ragconsumer.conf"
+
 echo "Secrets file"
 if [[ -f "$ENV_FILE" ]]; then
   mode="$(stat -c '%a' "$ENV_FILE")"; owner="$(stat -c '%U' "$ENV_FILE")"

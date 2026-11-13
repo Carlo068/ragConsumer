@@ -138,13 +138,16 @@ def test_documents_members_tokens_and_ai_access_are_recorded(
     assert token["token"] not in str([vars(e) for e in entries(db)])
 
 
-def test_a_refused_action_leaves_no_entry(client, make_user, db, matter):
+def test_a_refused_action_is_recorded_only_as_a_refusal(client, make_user, db, matter):
     make_user("outsider@firm.mx")
     login(client, "outsider@firm.mx")
     before = len(entries(db))
     assert client.put(f"/collections/{matter.id}/ai-access").status_code == 404
     assert client.delete(f"/collections/{matter.id}").status_code == 404
-    assert len(entries(db)) == before
+    # Nothing is recorded as if the action had happened; the refusals themselves are
+    # recorded as such (see test_denied_access.py).
+    new = entries(db)[before:]
+    assert [e.action for e in new] == [audit.ACCESS_DENIED, audit.ACCESS_DENIED]
 
 
 # ---- who can read it ----

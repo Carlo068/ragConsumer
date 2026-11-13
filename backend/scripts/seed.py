@@ -1,5 +1,11 @@
+import os
 import sys
 from pathlib import Path
+
+# Creates accounts with KNOWN passwords, including an administrator. Development only:
+# refuses to run unless the dev compose file has switched it on.
+if os.environ.get("SEED_ALLOWED") != "true":
+    sys.exit("seed.py creates accounts with known passwords and only runs in development (SEED_ALLOWED=true).")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # make `app` importable
 

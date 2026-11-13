@@ -33,6 +33,7 @@ VARIABLES = {
     "WORKER_MINIO_ACCESS_KEY": lambda: "rag-worker",
     "WORKER_MINIO_SECRET_KEY": URLSAFE,
     "QDRANT_API_KEY": URLSAFE,
+    "MINIO_WEBHOOK_TOKEN": URLSAFE,
     "SESSION_SECRET": URLSAFE,
 }
 
@@ -40,7 +41,7 @@ VARIABLES = {
 FROM_OPTIONS = {"DOMAIN": "--domain"}
 
 WEAK = {"postgres", "minioadmin", "password", "changeme", "dev-only-qdrant-key-replace-before-production"}
-SECRET_NAMES = {n for n in VARIABLES if n.endswith(("PASSWORD", "SECRET_KEY", "API_KEY", "SECRET"))}
+SECRET_NAMES = {n for n in VARIABLES if n.endswith(("PASSWORD", "SECRET_KEY", "API_KEY", "SECRET", "TOKEN"))}
 
 
 def parse(text: str) -> dict[str, str]:

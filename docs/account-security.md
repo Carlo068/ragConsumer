@@ -67,7 +67,9 @@ application. The address used is the real client address, which Caddy forwards
 
 `login`, `login_failed` (with the reason `account_disabled` when that was the cause),
 `login_throttled`, `logout`, `password_changed`, `password_reset_created`,
-`password_reset_completed`, `user_disabled`, `user_enabled`, `sessions_ended`, plus
+`password_reset_completed`, `user_disabled`, `user_enabled`, `sessions_ended`,
+`access_denied` (a refused matter request: who, which matter, which request, from
+where), plus
 everything listed in the application's activity view.
 
 ## Cross-site request forgery

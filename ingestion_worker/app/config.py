@@ -6,6 +6,10 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
 
+    # The storage service's notifications must carry this token (see
+    # app/webhook_auth.py). Empty means every notification is refused.
+    WEBHOOK_TOKEN: str = ""
+
     MINIO_ENDPOINT: str = "127.0.0.1:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"

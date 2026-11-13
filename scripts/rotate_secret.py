@@ -7,7 +7,7 @@ stack still works.
 
 Secrets: SESSION_SECRET, POSTGRES_PASSWORD, BACKEND_DB_PASSWORD, MCP_DB_PASSWORD,
 WORKER_DB_PASSWORD, MINIO_ROOT_PASSWORD, BACKEND_MINIO_SECRET_KEY,
-WORKER_MINIO_SECRET_KEY, QDRANT_API_KEY.
+WORKER_MINIO_SECRET_KEY, MINIO_WEBHOOK_TOKEN, QDRANT_API_KEY.
 
 In production add the compose files:
     COMPOSE_FILES="docker-compose.yml docker-compose.prod.yml" python scripts/rotate_secret.py ...
@@ -64,6 +64,10 @@ SECRETS = {
     "WORKER_MINIO_SECRET_KEY": {
         "effect": "The worker's storage account gets a new secret; the worker restarts.",
         "recreate": ["minio-init", "ingestion-worker"],
+    },
+    "MINIO_WEBHOOK_TOKEN": {
+        "effect": "Storage and the document worker restart together with the new token (about a minute).",
+        "recreate": ["minio", "ingestion-worker"],
     },
     "QDRANT_API_KEY": {
         "effect": "Qdrant, which signs the per-search tokens, restarts with the new key together with everything that uses it (about a minute). Indexed data is unaffected.",
@@ -139,6 +143,7 @@ CHECKS = {
         "ingestion-worker",
         "import os; from minio import Minio; c = Minio(os.environ['MINIO_ENDPOINT'], os.environ['MINIO_ACCESS_KEY'], os.environ['MINIO_SECRET_KEY'], secure=False); c._get_region(os.environ['MINIO_BUCKET'])",
     ),
+    "MINIO_WEBHOOK_TOKEN": ("ingestion-worker", "from app.config import settings; assert settings.WEBHOOK_TOKEN"),
     "QDRANT_API_KEY": (
         "backend",
         "from app.vectorstore import qdrant_client; qdrant_client.get_collections()",

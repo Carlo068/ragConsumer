@@ -37,6 +37,8 @@ services:
       # resolves it fine (confirmed via `getent hosts` -- this cost real
       # debugging time, see KAN-37).
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_INGEST: "http://ingestion-worker:8001/webhook"
+      # Sent with every notification; the worker refuses a call without it.
+      MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_INGEST: ${MINIO_WEBHOOK_TOKEN:?Set MINIO_WEBHOOK_TOKEN in .env (python scripts/generate_env.py)}
     volumes:
       - minio_data:/data
     ports:
@@ -50,22 +52,33 @@ services:
   #   backend  -> may add and delete documents, and list them (delete a matter)
   #   worker   -> may only read documents
   minio-init:
-    image: minio/mc:latest
+    # mc version RELEASE.2025-08-13T08-35-41Z, pinned by digest so a new upstream image cannot change what runs here
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     depends_on:
       - minio
     volumes:
       - ./minio/policies:/policies:ro
+    # The secrets are passed as environment variables and expanded by the shell
+    # ($$ is a literal $ for compose), so they are not written into the command
+    # line that `docker inspect` and `ps` show.
+    environment:
+      ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      BACKEND_ACCESS: ${BACKEND_MINIO_ACCESS_KEY:?Set BACKEND_MINIO_ACCESS_KEY in .env}
+      BACKEND_SECRET: ${BACKEND_MINIO_SECRET_KEY:?Set BACKEND_MINIO_SECRET_KEY in .env}
+      WORKER_ACCESS: ${WORKER_MINIO_ACCESS_KEY:?Set WORKER_MINIO_ACCESS_KEY in .env}
+      WORKER_SECRET: ${WORKER_MINIO_SECRET_KEY:?Set WORKER_MINIO_SECRET_KEY in .env}
     entrypoint: >
       /bin/sh -c "
         set -e;
-        until mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+        until mc alias set local http://minio:9000 \"$$ROOT_USER\" \"$$ROOT_PASSWORD\"; do sleep 2; done;
         mc mb --ignore-existing local/documents;
         mc admin policy create local backend-documents /policies/backend.json;
         mc admin policy create local worker-documents /policies/worker.json;
-        mc admin user add local ${BACKEND_MINIO_ACCESS_KEY:?Set BACKEND_MINIO_ACCESS_KEY in .env} ${BACKEND_MINIO_SECRET_KEY:?Set BACKEND_MINIO_SECRET_KEY in .env};
-        mc admin user add local ${WORKER_MINIO_ACCESS_KEY:?Set WORKER_MINIO_ACCESS_KEY in .env} ${WORKER_MINIO_SECRET_KEY:?Set WORKER_MINIO_SECRET_KEY in .env};
-        mc admin policy attach local backend-documents --user ${BACKEND_MINIO_ACCESS_KEY} || true;
-        mc admin policy attach local worker-documents --user ${WORKER_MINIO_ACCESS_KEY} || true;
+        mc admin user add local \"$$BACKEND_ACCESS\" \"$$BACKEND_SECRET\";
+        mc admin user add local \"$$WORKER_ACCESS\" \"$$WORKER_SECRET\";
+        mc admin policy attach local backend-documents --user \"$$BACKEND_ACCESS\" || true;
+        mc admin policy attach local worker-documents --user \"$$WORKER_ACCESS\" || true;
         mc event add local/documents arn:minio:sqs::INGEST:webhook --event put || true;
         exit 0
       "
@@ -148,6 +161,7 @@ services:
       # Downloaded models are kept in a volume, so redeploying does not fetch
       # ~600 MB again (and does not depend on the internet being reachable).
       FASTEMBED_CACHE_PATH: /models
+      WEBHOOK_TOKEN: ${MINIO_WEBHOOK_TOKEN:?Set MINIO_WEBHOOK_TOKEN in .env (python scripts/generate_env.py)}
     volumes:
       - worker_models:/models
     depends_on:

@@ -3,6 +3,7 @@ from qdrant_client import QdrantClient, models
 from sqlalchemy import bindparam, create_engine, text
 
 from app import audit
+from app.ids import is_valid_id
 from app.config import settings
 from app.index_model import fingerprint, is_compatible
 from app.matters import get_allowed_matters as _get_allowed_matters
@@ -126,6 +127,11 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
 
 
 def get_content(user_id: str, chunk_id: str) -> str | None:
+    if not is_valid_id(chunk_id):
+        # Not something we ever hand out: answer like a missing chunk, and never
+        # pass it on to Qdrant, whose error text would go back to the model.
+        audit.record(_engine, user_id, audit.MCP_GET_CONTENT, target=str(chunk_id)[:200], detail={"found": False, "malformed": True})
+        return None
     matters = get_allowed_matters(user_id)
     if not matters:
         audit.record(_engine, user_id, audit.MCP_GET_CONTENT, target=chunk_id,
@@ -151,6 +157,9 @@ def get_content(user_id: str, chunk_id: str) -> str | None:
 
 
 def get_document(user_id: str, doc_id: str) -> str | None:
+    if not is_valid_id(doc_id):
+        audit.record(_engine, user_id, audit.MCP_GET_DOCUMENT, target=str(doc_id)[:200], detail={"found": False, "malformed": True})
+        return None
     matters = get_allowed_matters(user_id)
     if not matters:
         audit.record(_engine, user_id, audit.MCP_GET_DOCUMENT, target=doc_id,

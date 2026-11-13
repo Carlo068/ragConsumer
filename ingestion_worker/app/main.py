@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 
 from app import queue
 from app.config import settings
 from app.pipeline import _engine, process_document
+from app.webhook_auth import webhook_authorized
 
 app = FastAPI()
 
@@ -34,10 +35,14 @@ def health():
 
 
 @app.post("/webhook")
-async def webhook():
+async def webhook(request: Request):
     """Storage tells us something was uploaded. We don't trust or even read the
     event: the documents table is the queue, so this just wakes the worker and
     answers straight away, however slow processing is. (A dropped or early
-    event is harmless: the worker also polls.)"""
+    event is harmless: the worker also polls.) Only the storage service, which
+    carries the shared token, may call it."""
+    if not webhook_authorized(request.headers.get("authorization"), settings.WEBHOOK_TOKEN):
+        print("Refused a webhook call without the right token")
+        raise HTTPException(status_code=401, detail="Unauthorized")
     runner.wake()
     return {"ok": True}

@@ -51,6 +51,10 @@ sistema nunca envía nada por iniciativa propia.
 3. Si el proveedor lo permite, desactive el **historial de conversaciones y la memoria**.
 4. **Active la IA solo en los asuntos donde haga falta**, y apáguela al cerrarlos. Los
    asuntos especialmente delicados, o de clientes que lo prohíban, no deben activarse.
+   Evite además tener **varios asuntos activados a la vez** sin necesidad: un documento
+   recibido de un tercero puede contener instrucciones ocultas para manipular a la IA
+   («inyección de instrucciones») y, si la IA ve varios asuntos, intentar que revele
+   contenido de otro. Activar un solo asunto por conversación limita ese riesgo.
 5. Confirme **dónde** procesa el proveedor los datos (país), por si el despacho o sus
    clientes exigen que no salgan de México (ver `docs/deployment/01-provider-options.md`).
 6. Revise los términos del proveedor cada vez que cambien, y quién tiene el contrato.

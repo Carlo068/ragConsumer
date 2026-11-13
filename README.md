@@ -111,6 +111,7 @@ Read `docs/deployment/` in order:
 7. `07-monitoring.md` alerts and log retention
 
 How sign-in, sessions, password resets and offboarding a person work: `docs/account-security.md`.
+What is protected, by what, and the limits that remain: `docs/security-notes.md`.
 
 ## Where documents go
 

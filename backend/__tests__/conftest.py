@@ -57,6 +57,12 @@ def clean_db() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def refused_requests_use_the_test_database(monkeypatch):
+    # app.denied writes its audit entry with its own session, outside get_db.
+    monkeypatch.setattr("app.denied.SessionLocal", TestSessionLocal)
+
+
+@pytest.fixture(autouse=True)
 def no_real_minio_at_startup(monkeypatch):
     # The app's startup event calls ensure_bucket(), which otherwise makes a
     # real network call to MinIO -- nothing in this suite should depend on

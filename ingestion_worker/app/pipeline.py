@@ -11,16 +11,20 @@ from qdrant_client import QdrantClient, models
 from sqlalchemy import create_engine, text
 
 from app.config import settings
+from app.failures import NoTextFound, failure_reason
 
 # --- Postgres status updates ----------------------------------------------
 _engine = create_engine(settings.DATABASE_URL)
 
 
-def update_document_status(doc_id: str, status_value: str) -> None:
+def update_document_status(doc_id: str, status_value: str, error: str | None = None) -> None:
     with _engine.begin() as conn:
         conn.execute(
-            text("UPDATE documents SET status = :status, updated_at = now() WHERE id = :doc_id"),
-            {"status": status_value, "doc_id": doc_id},
+            text(
+                "UPDATE documents SET status = :status, error_message = :error, "
+                "updated_at = now() WHERE id = :doc_id"
+            ),
+            {"status": status_value, "error": error, "doc_id": doc_id},
         )
 
 
@@ -180,13 +184,18 @@ def process_document(job) -> None:
         local_path = download_to_temp(settings.MINIO_BUCKET, job.object_key, job.filename)
         markdown_text = convert_to_markdown(local_path)
         chunks = chunk_markdown(markdown_text)
+        if not chunks:
+            # Reading "succeeded" but found nothing to search. Saying "ready"
+            # would be a lie: the file would silently never match anything.
+            raise NoTextFound()
         upsert_chunks(job.collection_id, job.doc_id, job.filename, chunks)
         if _document_still_exists(job.doc_id):
             update_document_status(job.doc_id, "ready")
         else:
             _discard_vectors_of_deleted_document(job.collection_id, job.doc_id)
-    except Exception:
-        update_document_status(job.doc_id, "failed")
+    except Exception as exc:
+        # The person sees a plain-language reason; the details stay in our log.
+        update_document_status(job.doc_id, "failed", failure_reason(exc))
         raise
     finally:
         if local_path and os.path.exists(local_path):

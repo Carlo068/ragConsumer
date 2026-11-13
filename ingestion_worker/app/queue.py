@@ -16,8 +16,12 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+
+from app.failures import TIMED_OUT
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,24 @@ def requeue_interrupted(engine: Engine) -> int:
     return result.rowcount
 
 
+def fail_stuck(
+    engine: Engine, older_than_minutes: float, now: datetime | None = None
+) -> int:
+    """Mark documents that have been "processing" far too long as failed, with
+    a reason, so they never sit in limbo and can be retried from the UI."""
+    now = now or datetime.now(UTC).replace(tzinfo=None)  # naive UTC, like the columns
+    cutoff = now - timedelta(minutes=older_than_minutes)
+    with engine.begin() as conn:
+        result = conn.execute(
+            text(
+                "UPDATE documents SET status = 'failed', error_message = :message, "
+                "updated_at = :now WHERE status = 'processing' AND updated_at < :cutoff"
+            ),
+            {"message": TIMED_OUT, "now": now, "cutoff": cutoff},
+        )
+    return result.rowcount
+
+
 class Runner:
     """Background thread that works through the queue one document at a time."""
 
@@ -77,7 +99,9 @@ class Runner:
         process: Callable[[Job], None],
         poll_seconds: float = 10.0,
         log: Callable[[str], None] = print,
+        stuck_after_minutes: float | None = None,
     ):
+        self._stuck_after_minutes = stuck_after_minutes
         self._engine = engine
         self._process = process
         self._poll_seconds = poll_seconds
@@ -102,6 +126,10 @@ class Runner:
     def _run(self) -> None:
         while not self._stop.is_set():
             try:
+                if self._stuck_after_minutes:
+                    stuck = fail_stuck(self._engine, self._stuck_after_minutes)
+                    if stuck:
+                        self._log(f"Marked {stuck} stuck document(s) as failed")
                 job = claim_next(self._engine)
             except Exception as exc:  # noqa: BLE001 - the database may be briefly unavailable
                 self._log(f"Could not read the queue: {exc}")

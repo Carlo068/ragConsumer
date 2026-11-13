@@ -58,5 +58,10 @@ export function useDocuments(collectionId: string) {
     await refresh()
   }
 
-  return { documents, loading, error, uploading, upload, remove }
+  async function retry(documentId: string) {
+    await documentsService.retry(collectionId, documentId)
+    await refresh()
+  }
+
+  return { documents, loading, error, uploading, upload, remove, retry }
 }

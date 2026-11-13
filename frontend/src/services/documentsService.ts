@@ -13,4 +13,7 @@ export const documentsService = {
 
   remove: (collectionId: string, documentId: string) =>
     apiClient.delete(`/collections/${collectionId}/documents/${documentId}`),
+
+  retry: (collectionId: string, documentId: string) =>
+    apiClient.post<Document>(`/collections/${collectionId}/documents/${documentId}/reingest`),
 }

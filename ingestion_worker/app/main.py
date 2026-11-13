@@ -6,7 +6,12 @@ from app.pipeline import _engine, process_document
 
 app = FastAPI()
 
-runner = queue.Runner(_engine, process_document, poll_seconds=settings.QUEUE_POLL_SECONDS)
+runner = queue.Runner(
+    _engine,
+    process_document,
+    poll_seconds=settings.QUEUE_POLL_SECONDS,
+    stuck_after_minutes=settings.STUCK_AFTER_MINUTES,
+)
 
 
 @app.on_event("startup")

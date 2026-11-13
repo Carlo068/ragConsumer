@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     # How often the worker looks for pending documents even without a webhook.
     QUEUE_POLL_SECONDS: float = 10.0
+    # A document still "processing" after this long is marked failed (retryable).
+    STUCK_AFTER_MINUTES: float = 60.0
 
 
 settings = Settings()

@@ -122,6 +122,9 @@ class Document(Base):
         SqlEnum(DocumentStatus, name="document_status"),
         default=DocumentStatus.uploaded,
     )
+    # Why indexing failed, in plain words for the person who uploaded it. Set by
+    # the worker when status becomes "failed", cleared when the file is retried.
+    error_message: Mapped[str | None] = mapped_column(String(1024), default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

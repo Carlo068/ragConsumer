@@ -29,6 +29,7 @@ REQUEST_KWARGS = {
     ("POST", "/collections/{collection_id}/members"): {
         "json": {"email": "someone@firm.mx", "role": "viewer"}
     },
+    ("POST", "/collections/{collection_id}/documents/{document_id}/reingest"): {},
     ("PATCH", "/collections/{collection_id}"): {"json": {"name": "Hijacked"}},
     ("PATCH", "/collections/{collection_id}/members/{user_id}"): {"json": {"role": "owner"}},
 }

@@ -76,7 +76,6 @@ def chunk_markdown(markdown_text: str) -> list[str]:
 
 
 # --- Embedding + Qdrant upsert -----------------------------------------------
-QDRANT_COLLECTION = "chunks"
 DENSE_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 DENSE_VECTOR_SIZE = 384
 SPARSE_MODEL_NAME = "Qdrant/bm25"
@@ -86,15 +85,23 @@ _dense_model = TextEmbedding(model_name=DENSE_MODEL_NAME)
 _sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME)
 
 
-def ensure_qdrant_collection() -> None:
-    if not _qdrant_client.collection_exists(QDRANT_COLLECTION):
+def matter_collection_name(collection_id: str) -> str:
+    # Must match backend/app/vectorstore.py and mcp_server/app/search.py: one
+    # Qdrant collection per matter, so Qdrant itself keeps matters apart.
+    return f"matter_{collection_id}"
+
+
+def ensure_matter_collection(collection_id: str) -> str:
+    name = matter_collection_name(collection_id)
+    if not _qdrant_client.collection_exists(name):
         _qdrant_client.create_collection(
-            collection_name=QDRANT_COLLECTION,
+            collection_name=name,
             vectors_config={
                 "dense": models.VectorParams(size=DENSE_VECTOR_SIZE, distance=models.Distance.COSINE)
             },
             sparse_vectors_config={"sparse": models.SparseVectorParams()},
         )
+    return name
 
 
 def chunk_point_id(doc_id: str, chunk_index: int) -> str:
@@ -112,6 +119,7 @@ def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[s
     # document that's enough to OOM-kill the worker (confirmed: a 5.5MB, ~1300
     # page PDF did exactly this). Batching bounds peak memory to one batch's
     # worth of vectors regardless of document size.
+    collection_name = ensure_matter_collection(collection_id)
     for batch_start in range(0, len(chunks), EMBED_BATCH_SIZE):
         batch = chunks[batch_start : batch_start + EMBED_BATCH_SIZE]
 
@@ -140,7 +148,7 @@ def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[s
                 zip(batch, dense_vectors, sparse_vectors)
             )
         ]
-        _qdrant_client.upsert(collection_name=QDRANT_COLLECTION, points=points)
+        _qdrant_client.upsert(collection_name=collection_name, points=points)
 
 
 # --- End-to-end per-object pipeline -------------------------------------------

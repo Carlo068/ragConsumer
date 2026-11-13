@@ -82,15 +82,19 @@ def test_delete_document_cleans_up_minio_and_qdrant(logged_in_client, db, monkey
     document_id = str(document_uuid)
     object_key = document.object_key
 
-    deleted_doc_ids: list[str] = []
+    deleted_chunks: list[tuple[str, str]] = []
     deleted_keys: list[str] = []
-    monkeypatch.setattr("app.routers.documents.delete_document_chunks", deleted_doc_ids.append)
+    monkeypatch.setattr(
+        "app.routers.documents.delete_document_chunks",
+        lambda matter_id, doc_id: deleted_chunks.append((matter_id, doc_id)),
+    )
     monkeypatch.setattr("app.routers.documents.delete_object", deleted_keys.append)
 
     response = client.delete(f"/collections/{collection_id}/documents/{document_id}")
 
     assert response.status_code == 204
-    assert deleted_doc_ids == [document_id]
+    # Chunks are deleted from the matter's own Qdrant collection.
+    assert deleted_chunks == [(collection_id, document_id)]
     assert deleted_keys == [object_key]
     # A plain select() (rather than db.get(), which special-cases a row it
     # already had loaded and would raise ObjectDeletedError instead of just

@@ -50,6 +50,9 @@ export function LoginForm({ onSubmit, submitting, error }: LoginFormProps) {
           <Button type="submit" disabled={submitting}>
             {submitting ? "Signing in..." : "Sign in"}
           </Button>
+          <p className="text-muted-foreground text-center text-xs">
+            Don't have an account? Ask your firm's administrator for an invitation.
+          </p>
         </form>
       </CardContent>
     </Card>

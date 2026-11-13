@@ -9,6 +9,9 @@ interface AuthContextValue {
   error: string | null
   login: (payload: LoginRequest) => Promise<void>
   logout: () => Promise<void>
+  // Re-reads the session, e.g. after accepting an invite logs the user in
+  // server-side without going through login().
+  refresh: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -42,8 +45,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  async function refresh() {
+    try {
+      setUser(await authService.me())
+    } catch {
+      setUser(null)
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )

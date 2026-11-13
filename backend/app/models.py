@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Enum as SqlEnum, ForeignKey, String
+from sqlalchemy import Enum as SqlEnum, ForeignKey, String, false
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -17,11 +17,35 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
+    # Account management only (inviting users). Grants no access to any
+    # matter: an admin sees a collection only by being a member of it, so
+    # ethical walls between matters hold even for the person running the firm.
+    is_admin: Mapped[bool] = mapped_column(default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     collection_links: Mapped[list["CollectionMember"]] = relationship(
         back_populates="user", passive_deletes=True
     )
+
+
+class Invite(Base):
+    """A pending invitation. Accounts are invite-only, so this is the only
+    way a new user gets created outside the admin bootstrap script."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    # SHA-256 of the token in the invite link. The raw token is shown to the
+    # admin once and never stored, so a database leak can't be replayed into
+    # account takeover.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    expires_at: Mapped[datetime]
+    accepted_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
 
 class Collection(Base):

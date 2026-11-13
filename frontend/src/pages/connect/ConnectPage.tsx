@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ConnectionSnippet } from "./components/ConnectionSnippet"
+import { CopyBlock } from "@/components/common/CopyBlock"
 
 const MCP_BASE_URL = import.meta.env.VITE_MCP_BASE_URL ?? "http://localhost:8002"
 const SERVER_NAME = "ragconsumer"
@@ -62,8 +62,8 @@ export function ConnectPage() {
           <CardTitle>Connect your MCP client</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <ConnectionSnippet label="claude mcp add (CLI)" code={cliSnippet} />
-          <ConnectionSnippet label=".mcp.json" code={jsonSnippet} />
+          <CopyBlock label="claude mcp add (CLI)" code={cliSnippet} />
+          <CopyBlock label=".mcp.json" code={jsonSnippet} />
         </CardContent>
       </Card>
     </div>

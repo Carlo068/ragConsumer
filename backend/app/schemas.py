@@ -14,9 +14,42 @@ class LoginRequest(BaseModel):
 class UserOut(BaseModel):
     id: uuid.UUID
     email: EmailStr
+    is_admin: bool
 
     class Config:
         from_attributes = True
+
+
+class AdminUserOut(UserOut):
+    created_at: datetime
+
+
+class InviteCreate(BaseModel):
+    email: EmailStr
+
+
+class InviteOut(BaseModel):
+    id: uuid.UUID
+    email: EmailStr
+    created_at: datetime
+    expires_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InviteCreated(InviteOut):
+    # Returned once, at creation. Only the token's hash is stored, so this
+    # link can't be retrieved again later; re-inviting issues a fresh one.
+    invite_url: str
+
+
+class InviteInfo(BaseModel):
+    email: EmailStr
+
+
+class InviteAccept(BaseModel):
+    password: str
 
 
 class CollectionOut(BaseModel):

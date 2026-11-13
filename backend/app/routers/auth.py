@@ -12,7 +12,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=UserOut)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.email == payload.email))
+    # Invites store emails lowercased, so match the same way: "Ana@Firm.mx"
+    # and "ana@firm.mx" are the same account.
+    user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 

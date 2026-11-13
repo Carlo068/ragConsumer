@@ -6,6 +6,10 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     SESSION_SECRET: str
+    # Behind HTTPS (production) set SESSION_HTTPS_ONLY=true so the cookie is
+    # never sent over plain HTTP. Sessions last SESSION_MAX_AGE_HOURS.
+    SESSION_HTTPS_ONLY: bool = False
+    SESSION_MAX_AGE_HOURS: int = 12
 
     MINIO_ENDPOINT: str = "127.0.0.1:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"

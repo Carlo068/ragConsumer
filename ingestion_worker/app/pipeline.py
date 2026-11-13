@@ -152,8 +152,29 @@ def upsert_chunks(collection_id: str, doc_id: str, filename: str, chunks: list[s
 
 
 # --- End-to-end per-object pipeline -------------------------------------------
+def is_known_document(collection_id: str, doc_id: str, key: str) -> bool:
+    """Only index objects the backend registered. The webhook is not
+    authenticated, so a forged or stale event (for an object that was deleted,
+    or a key that was never uploaded through the app) must not create vectors."""
+    with _engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT 1 FROM documents "
+                "WHERE id = :doc_id AND collection_id = :collection_id AND object_key = :key"
+            ),
+            {"doc_id": doc_id, "collection_id": collection_id, "key": key},
+        ).first()
+    return row is not None
+
+
 def process_object(bucket: str, key: str) -> None:
+    if bucket != settings.MINIO_BUCKET:
+        print(f"Ignoring event for unexpected bucket {bucket!r}")
+        return
     collection_id, doc_id, filename = parse_object_key(key)
+    if not is_known_document(collection_id, doc_id, key):
+        print(f"Ignoring event for an object with no matching document: {key}")
+        return
     update_document_status(doc_id, "processing")
 
     local_path = None

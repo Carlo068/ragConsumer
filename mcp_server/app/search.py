@@ -4,6 +4,8 @@ from sqlalchemy import bindparam, create_engine, text
 
 from app import audit
 from app.config import settings
+from app.matters import get_allowed_matters as _get_allowed_matters
+from app.matters import matter_collection_name
 from app.qdrant_access import scoped_client
 
 # Must match ingestion_worker/app/pipeline.py exactly -- same collection naming,
@@ -22,33 +24,7 @@ NO_MATTERS_MESSAGE = (
 
 
 def get_allowed_matters(user_id: str) -> dict[str, str]:
-    """The matters this person's AI may search right now: {matter id: name}.
-
-    Read fresh on every call, never cached or taken from a tool argument. A
-    matter counts only if the person both chose it for their AI *and* is still
-    a member of it. The second condition is the security one: removing someone
-    from a matter cuts their AI off on its very next call, whatever they had
-    selected before.
-    """
-    with _engine.connect() as conn:
-        rows = conn.execute(
-            text(
-                "SELECT c.id, c.name FROM ai_matter_selections s "
-                "JOIN collection_members m "
-                "  ON m.collection_id = s.collection_id AND m.user_id = s.user_id "
-                "JOIN collections c ON c.id = s.collection_id "
-                "WHERE s.user_id = :user_id ORDER BY c.name"
-            ),
-            {"user_id": user_id},
-        ).all()
-    return {str(row[0]): row[1] for row in rows}
-
-
-def matter_collection_name(matter_id: str) -> str:
-    # One Qdrant collection per matter. A tool call only ever names collections
-    # of matters the person's AI is allowed to reach (see get_allowed_matters),
-    # so a different matter's data is simply never queried.
-    return f"matter_{matter_id}"
+    return _get_allowed_matters(_engine, user_id)
 
 
 def _open_matters(matters: dict[str, str]) -> tuple[QdrantClient, dict[str, str]]:

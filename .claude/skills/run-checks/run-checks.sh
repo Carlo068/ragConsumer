@@ -55,6 +55,14 @@ if [[ $CHECK_STACK -eq 1 ]]; then
     code="$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$2")"
     if [[ "$code" == "200" ]]; then record "stack: $1" PASS; else record "stack: $1" "FAIL (HTTP $code)"; fi
   done
+
+  # Qdrant's own matter isolation, proven live (see mcp_server/app/isolation_check.py).
+  echo "===== qdrant isolation"
+  if (cd "$ROOT" && docker compose exec -T mcp_server python -m app.isolation_check); then
+    record "stack: qdrant isolation" PASS
+  else
+    record "stack: qdrant isolation" FAIL
+  fi
 fi
 
 echo; echo "===== SUMMARY"

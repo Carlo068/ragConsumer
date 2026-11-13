@@ -16,6 +16,23 @@ from app.vectorstore import delete_document_chunks
 
 router = APIRouter(prefix="/collections", tags=["documents"])
 
+MAX_FILENAME_LENGTH = 255
+
+
+def safe_filename(raw: str | None) -> str:
+    """A filename that is safe to put in a storage key and show to people:
+    no directory part, no control characters, never empty, at most 255 long
+    (keeping the extension)."""
+    name = (raw or "").replace(chr(92), "/").rsplit("/", 1)[-1]
+    name = "".join(ch for ch in name if ch.isprintable()).strip().lstrip(".")
+    if not name:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The file needs a name")
+    if len(name) > MAX_FILENAME_LENGTH:
+        stem, dot, extension = name.rpartition(".")
+        extension = (dot + extension) if dot and len(extension) <= 10 else ""
+        name = name[: MAX_FILENAME_LENGTH - len(extension)] + extension
+    return name
+
 
 @router.post(
     "/{collection_id}/documents",
@@ -38,8 +55,9 @@ async def upload_document(
             f"File exceeds the {max_mb:.0f} MB upload limit",
         )
 
+    filename = safe_filename(file.filename)
     doc_id = uuid.uuid4()
-    object_key = f"collection-{collection_id}/doc-{doc_id}/{file.filename}"
+    object_key = f"collection-{collection_id}/doc-{doc_id}/{filename}"
 
     minio_client.put_object(
         BUCKET_NAME,
@@ -49,19 +67,27 @@ async def upload_document(
         content_type=file.content_type or "application/octet-stream",
     )
 
-    document = Document(
-        id=doc_id,
-        collection_id=collection_id,
-        uploaded_by=current_user.id,
-        source_filename=file.filename,
-        object_key=object_key,
-    )
-    db.add(document)
-    audit.record(
-        db, audit.DOCUMENT_UPLOADED, actor=current_user, collection_id=collection_id,
-        target=file.filename, detail={"document_id": str(doc_id), "bytes": len(contents)},
-    )
-    db.commit()
+    try:
+        document = Document(
+            id=doc_id,
+            collection_id=collection_id,
+            uploaded_by=current_user.id,
+            source_filename=filename,
+            object_key=object_key,
+        )
+        db.add(document)
+        audit.record(
+            db, audit.DOCUMENT_UPLOADED, actor=current_user, collection_id=collection_id,
+            target=filename, detail={"document_id": str(doc_id), "bytes": len(contents)},
+        )
+        db.commit()
+    except Exception:
+        # The object is already in storage and storage tells the worker about
+        # it. Without its database row it would be indexed, searchable and
+        # impossible to delete, so take it back out.
+        db.rollback()
+        delete_object(object_key)
+        raise
     db.refresh(document)
     return document
 

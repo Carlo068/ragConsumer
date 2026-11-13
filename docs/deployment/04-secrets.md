@@ -30,7 +30,7 @@ exist anywhere else.
 |---|---|---|
 | `SESSION_SECRET` | Signs the login cookie. | Signs everyone out. |
 | `POSTGRES_PASSWORD` | The database with accounts, matters, the audit log. | Brief restart of backend, worker and MCP server. |
-| `MINIO_ROOT_PASSWORD` | Administration of document storage. Services never use it. | MinIO restarts briefly. |
+| `MINIO_ROOT_PASSWORD` | Administration of document storage. Running services never use it; only the on-demand backup tool does. | MinIO restarts briefly. |
 | `BACKEND_MINIO_SECRET_KEY` | The backend's storage account (read, write, delete documents). | Backend restarts. |
 | `WORKER_MINIO_SECRET_KEY` | The worker's storage account (read-only). | Worker restarts. |
 | `QDRANT_API_KEY` | Full access to the search index, and the key that signs the per-search tokens limiting each person to their own matters. **The most sensitive one.** | Qdrant and its clients restart. Indexed data is unaffected. |

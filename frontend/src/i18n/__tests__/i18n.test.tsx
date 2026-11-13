@@ -6,7 +6,14 @@ import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher"
 import { I18nProvider } from "@/i18n/I18nProvider"
-import { catalogs, describeError, interpolate, translate, type Translate } from "@/i18n/core"
+import {
+  catalogs,
+  describeError,
+  interpolate,
+  translate,
+  translatePlural,
+  type Translate,
+} from "@/i18n/core"
 import { en } from "@/i18n/messages/en"
 import { es } from "@/i18n/messages/es"
 import { ApiError } from "@/services/apiClient"
@@ -104,12 +111,39 @@ describe("translate", () => {
   })
 })
 
+describe("plurals", () => {
+  it("picks singular and plural in Spanish", () => {
+    expect(translatePlural("es", "collections.fileCount", 1)).toBe("1 archivo")
+    expect(translatePlural("es", "collections.fileCount", 12)).toBe("12 archivos")
+    expect(translatePlural("es", "collections.readyCount", 1)).toBe("1 listo")
+    expect(translatePlural("es", "collections.readyCount", 10)).toBe("10 listos")
+    expect(translatePlural("es", "collections.failedCount", 1)).toBe("1 no se pudo leer")
+    expect(translatePlural("es", "collections.failedCount", 2)).toBe("2 no se pudieron leer")
+  })
+
+  it("picks singular and plural in English, and treats zero as plural", () => {
+    expect(translatePlural("en", "collections.fileCount", 1)).toBe("1 file")
+    expect(translatePlural("en", "collections.fileCount", 0)).toBe("0 files")
+  })
+
+  it("has both forms for every counted message in both languages", () => {
+    for (const messages of [en, es]) {
+      const flat = flatten(messages)
+      for (const key of Object.keys(flat).filter((k) => k.endsWith("_one"))) {
+        expect(flat[key.replace(/_one$/, "_other")], key).toBeTruthy()
+      }
+    }
+  })
+})
+
 describe("describeError", () => {
   const tEs: Translate = (key, params) => translate("es", key, params)
 
   it("shows the translation of the server's error code, with its values", () => {
     const err = new ApiError(413, "File exceeds the 50 MB upload limit", "file_too_large", { max_mb: 50 })
-    expect(describeError(err, tEs)).toBe("Ese archivo es demasiado grande. El límite es de 50 MB.")
+    expect(describeError(err, tEs)).toBe(
+      "Ese archivo es demasiado grande. El límite es de 50 MB. Divídalo o reduzca su tamaño."
+    )
   })
 
   it("never shows the server's English text", () => {
@@ -203,7 +237,9 @@ describe("the interface in Spanish", () => {
         />
       </I18nProvider>
     )
-    expect(screen.getByText("El correo o la contraseña no son correctos.")).toBeInTheDocument()
+    expect(
+      screen.getByText(/El correo o la contraseña no son correctos/)
+    ).toBeInTheDocument()
     expect(screen.queryByText("Invalid credentials")).not.toBeInTheDocument()
   })
 })

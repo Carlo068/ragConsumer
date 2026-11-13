@@ -64,6 +64,10 @@ class CollectionOut(BaseModel):
     role: CollectionRole
     # Whether this person's own AI currently searches this matter.
     ai_enabled: bool
+    # File counts for the list ("12 files, 10 ready").
+    document_count: int = 0
+    ready_count: int = 0
+    failed_count: int = 0
 
     class Config:
         from_attributes = True

@@ -34,8 +34,15 @@ export function CollectionsPage() {
         />
       </div>
 
+      <p className="text-muted-foreground mb-4 text-sm">{t("collections.intro")}</p>
+
       {loading && <p>{t("common.loading")}</p>}
       {error && <p className="text-destructive">{error}</p>}
+      {!loading && !error && collections.length === 0 && (
+        <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+          {t("collections.empty")}
+        </p>
+      )}
 
       <div className="flex flex-col gap-3">
         {collections.map((collection) => (

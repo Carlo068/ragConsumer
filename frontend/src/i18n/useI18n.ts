@@ -1,6 +1,6 @@
 import { useContext } from "react"
 import { I18nContext, fallbackLocale, type I18nValue } from "./context"
-import { describeError, translate, type Locale, type Translate } from "./core"
+import { describeError, translate, translatePlural, type Locale, type Translate } from "./core"
 
 // Built once per language and reused, so hooks that depend on these functions
 // don't see a "new" value on every render.
@@ -15,6 +15,7 @@ function fallbackValue(locale: Locale): I18nValue {
       locale,
       setLocale: () => {},
       t,
+      tp: (key, count, params) => translatePlural(locale, key, count, params),
       formatDate: (v) => new Date(v + "Z").toLocaleDateString(tag),
       formatDateTime: (v) => new Date(v + "Z").toLocaleString(tag),
       errorText: (err, fallbackKey) => describeError(err, t, fallbackKey),

@@ -20,21 +20,37 @@ export function CollectionRow({
   onRename,
   onDelete,
 }: CollectionRowProps) {
-  const { t } = useI18n()
+  const { t, tp } = useI18n()
+
+  // "12 files · 10 ready", plus how many could not be read when there are any.
+  function fileSummary() {
+    if (collection.document_count === 0) return t("collections.noFiles")
+    const parts = [
+      tp("collections.fileCount", collection.document_count),
+      tp("collections.readyCount", collection.ready_count),
+    ]
+    if (collection.failed_count > 0) parts.push(tp("collections.failedCount", collection.failed_count))
+    return parts.join(" · ")
+  }
+
   return (
     <div className="flex items-center gap-3 rounded-lg border px-4 py-3">
-      <Switch
-        checked={collection.ai_enabled}
-        onCheckedChange={onToggleAi}
-        aria-label={t("collections.aiSwitch", { name: collection.name })}
-        title={t("collections.aiSwitchTitle")}
-      />
-      <Link
-        to={`/collections/${collection.id}/upload`}
-        className="flex-1 font-medium hover:underline"
-      >
-        {collection.name}
-      </Link>
+      <div className="flex w-20 flex-col items-center gap-1" title={t("collections.aiSwitchTitle")}>
+        <Switch
+          checked={collection.ai_enabled}
+          onCheckedChange={onToggleAi}
+          aria-label={t("collections.aiSwitch", { name: collection.name })}
+        />
+        <span className="text-muted-foreground text-center text-[11px] leading-tight">
+          {collection.ai_enabled ? t("collections.aiOn") : t("collections.aiOff")}
+        </span>
+      </div>
+      <div className="flex-1">
+        <Link to={`/collections/${collection.id}/upload`} className="font-medium hover:underline">
+          {collection.name}
+        </Link>
+        <p className="text-muted-foreground text-xs">{fileSummary()}</p>
+      </div>
       {!canManageCollection(collection.role) && (
         <span className="text-muted-foreground text-xs">{t(`roles.${collection.role}`)}</span>
       )}

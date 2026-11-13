@@ -68,6 +68,8 @@ describe("MembersPanel", () => {
         .mockRejectedValue(new ApiError(409, "A collection must keep at least one owner.", "last_owner")),
     })
     await user.selectOptions(screen.getByLabelText("Role for me@firm.mx"), "viewer")
-    expect(await screen.findByText("A collection must keep at least one owner.")).toBeInTheDocument()
+    expect(
+      await screen.findByText(/A collection must keep at least one owner/)
+    ).toBeInTheDocument()
   })
 })

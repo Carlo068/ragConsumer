@@ -43,6 +43,25 @@ export function translate(locale: Locale, key: string, params?: Params): string 
 
 export type Translate = (key: MessageKey, params?: Params) => string
 
+// Messages with a count come in two forms, "key_one" and "key_other".
+export type PluralKey = MessageKey extends infer K
+  ? K extends `${infer Base}_other`
+    ? Base
+    : never
+  : never
+export type TranslatePlural = (key: PluralKey, count: number, params?: Params) => string
+
+export function translatePlural(
+  locale: Locale,
+  key: string,
+  count: number,
+  params?: Params
+): string {
+  const form = new Intl.PluralRules(locale === "es" ? "es-MX" : "en-US").select(count)
+  const chosen = form === "one" ? `${key}_one` : `${key}_other`
+  return translate(locale, chosen, { count, ...params })
+}
+
 // Turns whatever went wrong into a message in the person's language. Backend
 // errors carry a stable code, so the English text the server also sends is
 // never shown; anything without a code falls back by HTTP status.

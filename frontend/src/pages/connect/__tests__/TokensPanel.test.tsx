@@ -55,3 +55,12 @@ describe("TokensPanel", () => {
     expect(onRevoke).toHaveBeenCalledWith("t1")
   })
 })
+
+describe("TokensPanel empty state", () => {
+  it("tells you what to do when you have no access keys yet", () => {
+    render(
+      <TokensPanel tokens={[]} onCreate={vi.fn()} onRevoke={vi.fn()} />
+    )
+    expect(screen.getByText(/Create one above to connect your AI assistant/)).toBeInTheDocument()
+  })
+})

@@ -18,7 +18,7 @@ export function RoleSelect({ value, onChange, disabled, "aria-label": ariaLabel 
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as CollectionRole)}
-      className="border-input bg-background h-8 rounded-lg border px-2 text-sm disabled:opacity-50"
+      className="border-input bg-background h-8 max-w-full rounded-lg border px-2 text-sm disabled:opacity-50 sm:max-w-xs"
     >
       {VALUES.map((role) => (
         <option key={role} value={role}>

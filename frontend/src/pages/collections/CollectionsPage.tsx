@@ -2,13 +2,18 @@ import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PromptDialog } from "@/components/common/PromptDialog"
 import { useCollections } from "@/hooks/useCollections"
-import { useMcpConfig } from "@/hooks/useMcpConfig"
 import { CollectionRow } from "./components/CollectionRow"
 
 export function CollectionsPage() {
-  const { collections, loading, error, createCollection, renameCollection, deleteCollection } =
-    useCollections()
-  const { active, activate, deactivate } = useMcpConfig()
+  const {
+    collections,
+    loading,
+    error,
+    createCollection,
+    renameCollection,
+    deleteCollection,
+    setAiAccess,
+  } = useCollections()
 
   return (
     <div className="mx-auto max-w-2xl p-8">
@@ -35,10 +40,7 @@ export function CollectionsPage() {
           <CollectionRow
             key={collection.id}
             collection={collection}
-            active={active?.collection_id === collection.id}
-            onToggleActive={(checked) =>
-              checked ? activate(collection.id) : deactivate()
-            }
+            onToggleAi={(enabled) => setAiAccess(collection.id, enabled)}
             onRename={(name) => renameCollection(collection.id, name)}
             onDelete={() => deleteCollection(collection.id)}
           />

@@ -38,5 +38,18 @@ export function useCollections() {
     await refresh()
   }
 
-  return { collections, loading, error, createCollection, renameCollection, deleteCollection }
+  async function setAiAccess(id: string, enabled: boolean) {
+    await collectionsService.setAiAccess(id, enabled)
+    await refresh()
+  }
+
+  return {
+    collections,
+    loading,
+    error,
+    createCollection,
+    renameCollection,
+    deleteCollection,
+    setAiAccess,
+  }
 }

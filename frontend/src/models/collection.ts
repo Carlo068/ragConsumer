@@ -5,6 +5,9 @@ export interface Collection {
   name: string
   // The signed-in user's own role on this collection.
   role: CollectionRole
+  // Whether the signed-in user's own AI searches this matter. Per person:
+  // switching it never affects a colleague.
+  ai_enabled: boolean
 }
 
 // The server enforces these same rules on every request; these helpers only

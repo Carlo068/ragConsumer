@@ -2,7 +2,7 @@ from typing import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -52,11 +52,6 @@ def clean_db() -> Iterator[None]:
     recreate for an in-memory database, no need for truncate/rollback
     tricks."""
     Base.metadata.create_all(bind=test_engine)
-    with test_engine.connect() as conn:
-        conn.execute(
-            text("INSERT INTO mcp_active_collection (id, collection_id) VALUES (1, NULL)")
-        )
-        conn.commit()
     yield
     Base.metadata.drop_all(bind=test_engine)
 

@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
-from app.models import Collection, CollectionMember, CollectionRole, Document, User
+from app.models import (
+    AiMatterSelection,
+    Collection,
+    CollectionMember,
+    CollectionRole,
+    Document,
+    User,
+)
 from app.schemas import CollectionCreate, CollectionOut, CollectionUpdate
 from app.storage import delete_objects_by_prefix
 from app.vectorstore import delete_document_chunks
@@ -20,12 +27,20 @@ def list_collections(
     db: Session = Depends(get_db),
 ):
     rows = db.execute(
-        select(Collection, CollectionMember.role)
+        select(Collection, CollectionMember.role, AiMatterSelection.collection_id)
         .join(CollectionMember, CollectionMember.collection_id == Collection.id)
+        .outerjoin(
+            AiMatterSelection,
+            (AiMatterSelection.collection_id == Collection.id)
+            & (AiMatterSelection.user_id == current_user.id),
+        )
         .where(CollectionMember.user_id == current_user.id)
         .order_by(Collection.name)
     ).all()
-    return [CollectionOut(id=c.id, name=c.name, role=role) for c, role in rows]
+    return [
+        CollectionOut(id=c.id, name=c.name, role=role, ai_enabled=selected is not None)
+        for c, role, selected in rows
+    ]
 
 
 @router.post("", response_model=CollectionOut, status_code=status.HTTP_201_CREATED)
@@ -45,7 +60,9 @@ def create_collection(
     )
     db.commit()
     db.refresh(collection)
-    return CollectionOut(id=collection.id, name=collection.name, role=CollectionRole.owner)
+    return CollectionOut(
+        id=collection.id, name=collection.name, role=CollectionRole.owner, ai_enabled=False
+    )
 
 
 @router.patch("/{collection_id}", response_model=CollectionOut)
@@ -64,7 +81,10 @@ def rename_collection(
     collection.name = payload.name
     db.commit()
     db.refresh(collection)
-    return CollectionOut(id=collection.id, name=collection.name, role=member.role)
+    ai_enabled = db.get(AiMatterSelection, (current_user.id, collection_id)) is not None
+    return CollectionOut(
+        id=collection.id, name=collection.name, role=member.role, ai_enabled=ai_enabled
+    )
 
 
 @router.delete("/{collection_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,6 +1,6 @@
 from fastembed import SparseTextEmbedding, TextEmbedding
 from qdrant_client import QdrantClient, models
-from sqlalchemy import create_engine, text
+from sqlalchemy import bindparam, create_engine, text
 
 from app.config import settings
 
@@ -15,40 +15,43 @@ _dense_model = TextEmbedding(model_name=DENSE_MODEL_NAME)
 _sparse_model = SparseTextEmbedding(model_name=SPARSE_MODEL_NAME)
 _engine = create_engine(settings.DATABASE_URL)
 
-NO_ACTIVE_COLLECTION_MESSAGE = (
-    "No collection is currently active. Select one from the frontend's Connect page."
+NO_MATTERS_MESSAGE = (
+    "None of your matters is turned on for your AI. "
+    "Turn one on from the Collections page of the web app."
 )
 
 
-def get_active_collection_id(user_id: str) -> str | None:
-    # Read fresh on every call (not cached), so toggling the active collection
-    # in the frontend takes effect immediately. Never accepted as a tool
-    # argument. Interim rule until each person picks their own matter: the
-    # shared selection is only honoured for someone who is a member of it, so
-    # a token can never reach a matter its owner has no access to. Anyone else
-    # gets the same answer as "nothing selected" and learns nothing.
+def get_allowed_matters(user_id: str) -> dict[str, str]:
+    """The matters this person's AI may search right now: {matter id: name}.
+
+    Read fresh on every call, never cached or taken from a tool argument. A
+    matter counts only if the person both chose it for their AI *and* is still
+    a member of it. The second condition is the security one: removing someone
+    from a matter cuts their AI off on its very next call, whatever they had
+    selected before.
+    """
     with _engine.connect() as conn:
-        row = conn.execute(
+        rows = conn.execute(
             text(
-                "SELECT a.collection_id FROM mcp_active_collection a "
-                "JOIN collection_members m ON m.collection_id = a.collection_id "
-                "WHERE a.id = 1 AND m.user_id = :user_id"
+                "SELECT c.id, c.name FROM ai_matter_selections s "
+                "JOIN collection_members m "
+                "  ON m.collection_id = s.collection_id AND m.user_id = s.user_id "
+                "JOIN collections c ON c.id = s.collection_id "
+                "WHERE s.user_id = :user_id ORDER BY c.name"
             ),
             {"user_id": user_id},
-        ).first()
-    return str(row[0]) if row and row[0] is not None else None
+        ).all()
+    return {str(row[0]): row[1] for row in rows}
 
 
-def _collection_filter(collection_id: str) -> models.FieldCondition:
-    return models.FieldCondition(
-        key="collection_id", match=models.MatchValue(value=collection_id)
-    )
+def _in_matters(matter_ids: list[str]) -> models.FieldCondition:
+    return models.FieldCondition(key="collection_id", match=models.MatchAny(any=matter_ids))
 
 
 def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
-    collection_id = get_active_collection_id(user_id)
-    if collection_id is None:
-        return [{"message": NO_ACTIVE_COLLECTION_MESSAGE}]
+    matters = get_allowed_matters(user_id)
+    if not matters:
+        return [{"message": NO_MATTERS_MESSAGE}]
 
     dense_vec = list(_dense_model.embed([query]))[0]
     sparse_vec = list(_sparse_model.embed([query]))[0]
@@ -67,7 +70,7 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
             ),
         ],
         query=models.FusionQuery(fusion=models.Fusion.RRF),
-        query_filter=models.Filter(must=[_collection_filter(collection_id)]),
+        query_filter=models.Filter(must=[_in_matters(list(matters))]),
         limit=limit,
         with_payload=True,
     )
@@ -76,6 +79,7 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
         {
             "chunk_id": str(point.id),
             "doc_id": point.payload["doc_id"],
+            "matter": matters.get(point.payload["collection_id"], ""),
             "source_filename": point.payload["source_filename"],
             "text": point.payload["text"],
         }
@@ -84,9 +88,9 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
 
 
 def get_content(user_id: str, chunk_id: str) -> str | None:
-    collection_id = get_active_collection_id(user_id)
-    if collection_id is None:
-        return NO_ACTIVE_COLLECTION_MESSAGE
+    matters = get_allowed_matters(user_id)
+    if not matters:
+        return NO_MATTERS_MESSAGE
 
     points = _qdrant_client.retrieve(
         collection_name=QDRANT_COLLECTION, ids=[chunk_id], with_payload=True
@@ -94,22 +98,23 @@ def get_content(user_id: str, chunk_id: str) -> str | None:
     if not points:
         return None
     point = points[0]
-    if point.payload.get("collection_id") != collection_id:
-        # Exists, but in a different collection -- treat exactly like not found.
+    if point.payload.get("collection_id") not in matters:
+        # Exists, but in a matter this person's AI can't reach -- treat exactly
+        # like not found.
         return None
     return point.payload["text"]
 
 
 def get_document(user_id: str, doc_id: str) -> str | None:
-    collection_id = get_active_collection_id(user_id)
-    if collection_id is None:
-        return NO_ACTIVE_COLLECTION_MESSAGE
+    matters = get_allowed_matters(user_id)
+    if not matters:
+        return NO_MATTERS_MESSAGE
 
     points, _ = _qdrant_client.scroll(
         collection_name=QDRANT_COLLECTION,
         scroll_filter=models.Filter(
             must=[
-                _collection_filter(collection_id),
+                _in_matters(list(matters)),
                 models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id)),
             ]
         ),
@@ -123,16 +128,24 @@ def get_document(user_id: str, doc_id: str) -> str | None:
 
 
 def list_documents(user_id: str) -> list[dict]:
-    collection_id = get_active_collection_id(user_id)
-    if collection_id is None:
-        return [{"message": NO_ACTIVE_COLLECTION_MESSAGE}]
+    matters = get_allowed_matters(user_id)
+    if not matters:
+        return [{"message": NO_MATTERS_MESSAGE}]
 
     with _engine.connect() as conn:
         rows = conn.execute(
             text(
-                "SELECT id, source_filename, status FROM documents "
-                "WHERE collection_id = :collection_id ORDER BY created_at DESC"
-            ),
-            {"collection_id": collection_id},
+                "SELECT id, collection_id, source_filename, status FROM documents "
+                "WHERE collection_id IN :ids ORDER BY created_at DESC"
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"ids": list(matters)},
         ).mappings().all()
-    return [{"id": str(row["id"]), "source_filename": row["source_filename"], "status": row["status"]} for row in rows]
+    return [
+        {
+            "id": str(row["id"]),
+            "matter": matters[str(row["collection_id"])],
+            "source_filename": row["source_filename"],
+            "status": row["status"],
+        }
+        for row in rows
+    ]

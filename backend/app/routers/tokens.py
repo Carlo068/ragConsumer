@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.auth import get_current_user
 from app.config import settings
 from app.db import get_db
@@ -60,6 +61,11 @@ def create_token(
         expires_at=utcnow() + timedelta(days=settings.TOKEN_TTL_DAYS),
     )
     db.add(token)
+    db.flush()
+    audit.record(
+        db, audit.TOKEN_CREATED, actor=current_user, target=token.name,
+        detail={"token_id": str(token.id), "prefix": token.prefix},
+    )
     db.commit()
     db.refresh(token)
     return TokenCreated(
@@ -86,4 +92,8 @@ def revoke_token(
     if token is None or token.revoked_at is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     token.revoked_at = utcnow()
+    audit.record(
+        db, audit.TOKEN_REVOKED, actor=current_user, target=token.name,
+        detail={"token_id": str(token.id), "prefix": token.prefix},
+    )
     db.commit()

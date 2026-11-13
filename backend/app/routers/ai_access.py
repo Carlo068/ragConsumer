@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
 from app.models import AiMatterSelection, CollectionRole, User
@@ -21,6 +22,9 @@ def enable_ai_access(
     require_collection_role(db, current_user.id, collection_id, CollectionRole.viewer)
     if db.get(AiMatterSelection, (current_user.id, collection_id)) is None:
         db.add(AiMatterSelection(user_id=current_user.id, collection_id=collection_id))
+        audit.record(
+            db, audit.AI_ACCESS_ENABLED, actor=current_user, collection_id=collection_id
+        )
         db.commit()
 
 
@@ -34,4 +38,7 @@ def disable_ai_access(
     selection = db.get(AiMatterSelection, (current_user.id, collection_id))
     if selection is not None:
         db.delete(selection)
+        audit.record(
+            db, audit.AI_ACCESS_DISABLED, actor=current_user, collection_id=collection_id
+        )
         db.commit()

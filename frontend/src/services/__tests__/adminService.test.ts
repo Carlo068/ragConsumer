@@ -32,3 +32,19 @@ describe("inviteService", () => {
     })
   })
 })
+
+describe("adminService audit", () => {
+  it("listAudit() sends filters and paging", async () => {
+    await adminService.listAudit({ action: "login_failed", actor: "ana" }, 25, 50)
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/admin/audit?limit=25&offset=50&action=login_failed&actor=ana"
+    )
+  })
+
+  it("auditCsvUrl() carries the same filters and no paging", () => {
+    expect(adminService.auditCsvUrl({ action: "mcp_search" })).toMatch(
+      /\/admin\/audit\.csv\?action=mcp_search$/
+    )
+    expect(adminService.auditCsvUrl({})).toMatch(/\/admin\/audit\.csv$/)
+  })
+})

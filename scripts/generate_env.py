@@ -1,6 +1,7 @@
 """Creates (or completes) the repo-root .env with strong random secrets.
 
     python scripts/generate_env.py
+    python scripts/generate_env.py --domain matters.yourfirm.mx    (production: also sets DOMAIN)
 
 Never overwrites a value that already exists, so it is safe to rerun after
 upgrades that add new variables. It warns about well-known weak values it finds
@@ -8,6 +9,8 @@ upgrades that add new variables. It warns about well-known weak values it finds
 database password also means changing it inside the running database.
 """
 
+import argparse
+import re
 import secrets
 import sys
 from pathlib import Path
@@ -30,6 +33,9 @@ VARIABLES = {
     "SESSION_SECRET": URLSAFE,
 }
 
+# Settings that are not generated but come from an option (production address).
+FROM_OPTIONS = {"DOMAIN": "--domain"}
+
 WEAK = {"postgres", "minioadmin", "password", "changeme", "dev-only-qdrant-key-replace-before-production"}
 SECRET_NAMES = {n for n in VARIABLES if n.endswith(("PASSWORD", "SECRET_KEY", "API_KEY", "SECRET"))}
 
@@ -45,6 +51,13 @@ def parse(text: str) -> dict[str, str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Create or complete .env with strong random secrets.")
+    parser.add_argument("--domain", help="public address for production, e.g. matters.yourfirm.mx (sets DOMAIN)")
+    args = parser.parse_args()
+    if args.domain and not re.fullmatch(r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?", args.domain):
+        print(f"ERROR: '{args.domain}' is not a valid domain name (no https://, no path)")
+        return 2
+
     existing_text = ENV_PATH.read_text(encoding="utf-8") if ENV_PATH.exists() else ""
     existing = parse(existing_text)
 
@@ -52,6 +65,11 @@ def main() -> int:
     lines = []
     for name in added:
         lines.append(f"{name}={VARIABLES[name]()}")
+    if args.domain and "DOMAIN" not in existing:
+        added.append("DOMAIN")
+        lines.append(f"DOMAIN={args.domain}")
+    elif args.domain and existing.get("DOMAIN") != args.domain:
+        print(f"NOTE: DOMAIN is already {existing.get('DOMAIN')} in .env and was left as it is.")
     if lines:
         prefix = "" if not existing_text or existing_text.endswith("\n") else "\n"
         with ENV_PATH.open("a", encoding="utf-8", newline="\n") as f:

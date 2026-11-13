@@ -1,0 +1,21 @@
+Copyright (c) 2026 the ragConsumer project owner(s). All rights reserved.
+
+This software and its documentation ("the Software") are proprietary.
+
+No permission is granted to use, copy, modify, merge, publish, distribute,
+sublicense, host as a service for others, or sell copies of the Software, in
+whole or in part, except under a separate written agreement with the copyright
+holder (for example, the agreement under which a client's pilot installation is
+run). Making this repository visible to others does not grant any such
+permission.
+
+Third-party components used by the Software (libraries, container images and
+machine-learning models) are NOT covered by this notice. Each remains under its
+own license, listed in THIRD_PARTY_NOTICES.md, and nothing here limits the
+rights those licenses give you.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE
+OF THE SOFTWARE.

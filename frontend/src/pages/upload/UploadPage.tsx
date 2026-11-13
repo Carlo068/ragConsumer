@@ -9,14 +9,14 @@ import { useMembers } from "@/hooks/useMembers"
 import { canEditFiles, canManageCollection } from "@/models/collection"
 import { DocumentList } from "./components/DocumentList"
 import { MembersPanel } from "./components/MembersPanel"
-import { UploadForm } from "./components/UploadForm"
+import { BulkUploader } from "./components/BulkUploader"
 
 export function UploadPage() {
   const { t } = useI18n()
   const { collectionId } = useParams<{ collectionId: string }>()
   const { collections } = useCollections()
   const limits = useLimits()
-  const { documents, loading, error, uploading, upload, remove, retry } = useDocuments(
+  const { documents, loading, error, refresh, remove, retry } = useDocuments(
     collectionId!
   )
 
@@ -43,7 +43,12 @@ export function UploadPage() {
 
       {canEditFiles(collection?.role) ? (
         <div className="mb-6">
-          <UploadForm onUpload={upload} uploading={uploading} maxUploadBytes={limits?.max_upload_bytes} />
+          <BulkUploader
+            collectionId={collectionId!}
+            existingNames={documents.map((d) => d.source_filename)}
+            maxUploadBytes={limits?.max_upload_bytes}
+            onFinished={refresh}
+          />
         </div>
       ) : (
         collection && (

@@ -14,7 +14,6 @@ export function useDocuments(collectionId: string) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -45,16 +44,6 @@ export function useDocuments(collectionId: string) {
     return () => clearInterval(interval)
   }, [documents, refresh])
 
-  async function upload(file: File) {
-    setUploading(true)
-    try {
-      await documentsService.upload(collectionId, file)
-      await refresh()
-    } finally {
-      setUploading(false)
-    }
-  }
-
   async function remove(documentId: string) {
     await documentsService.remove(collectionId, documentId)
     await refresh()
@@ -65,5 +54,5 @@ export function useDocuments(collectionId: string) {
     await refresh()
   }
 
-  return { documents, loading, error, uploading, upload, remove, retry }
+  return { documents, loading, error, refresh, remove, retry }
 }

@@ -13,9 +13,9 @@ from app.routers.documents import MAX_FILENAME_LENGTH, safe_filename
     [
         ("contrato.pdf", "contrato.pdf"),
         ("Demanda de amparo — final.docx", "Demanda de amparo — final.docx"),
-        ("../../etc/passwd", "passwd"),
-        ("a/b/c.pdf", "c.pdf"),
-        ("C:" + chr(92) + "Users" + chr(92) + "ana" + chr(92) + "acta.pdf", "acta.pdf"),
+        ("../../etc/passwd", "etc/passwd"),
+        ("a/b/c.pdf", "a/b/c.pdf"),
+        ("C:" + chr(92) + "Users" + chr(92) + "ana" + chr(92) + "acta.pdf", "C:/Users/ana/acta.pdf"),
         (".hidden.pdf", "hidden.pdf"),
         ("bad" + chr(0) + "name" + chr(10) + ".pdf", "badname.pdf"),
         ("  spaced.pdf  ", "spaced.pdf"),
@@ -25,13 +25,38 @@ def test_safe_filename_strips_directories_and_control_characters(raw, expected):
     assert safe_filename(raw) == expected
 
 
-@pytest.mark.parametrize("raw", [None, "", "   ", "..", "/", "...", "dir/"])
+@pytest.mark.parametrize("raw", [None, "", "   ", "..", "/", "...", "../..", "./."])
 def test_safe_filename_rejects_names_with_nothing_left(raw):
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as error:
         safe_filename(raw)
     assert error.value.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("contratos/2024/arrendamiento.pdf", "contratos/2024/arrendamiento.pdf"),
+        ("contratos//2024/./arrendamiento.pdf", "contratos/2024/arrendamiento.pdf"),
+        ("/contratos/2024/", "contratos/2024"),
+        ("  contratos  /  2024  /a.pdf", "contratos/2024/a.pdf"),
+        ("a/../b/.hidden/c.pdf", "a/b/hidden/c.pdf"),
+    ],
+)
+def test_folders_are_kept_in_the_name_and_cleaned_segment_by_segment(raw, expected):
+    assert safe_filename(raw) == expected
+
+
+def test_a_path_can_never_climb_out_of_the_documents_own_folder():
+    for raw in ("../../../x.pdf", "a/../../x.pdf", "/../x.pdf", "..///x.pdf"):
+        name = safe_filename(raw)
+        assert ".." not in name.split("/") and not name.startswith("/")
+
+
+def test_very_deep_folders_keep_the_file_and_its_nearest_folders():
+    name = safe_filename("/".join(f"d{i}" for i in range(30)) + "/acta.pdf")
+    assert name.endswith("d29/acta.pdf") and len(name.split("/")) == 12
 
 
 def test_a_long_filename_is_shortened_but_keeps_its_extension():
@@ -59,6 +84,32 @@ def test_a_very_long_filename_no_longer_breaks_the_upload(logged_in_client, db, 
     assert response.status_code == 201
     assert len(response.json()["source_filename"]) == MAX_FILENAME_LENGTH
     assert len(stored) == 1 and stored[0].endswith(".pdf")
+
+
+def test_a_file_uploaded_from_a_folder_keeps_its_path_and_stays_inside_its_own_storage_folder(
+    logged_in_client, db, monkeypatch
+):
+    client, user = logged_in_client
+    collection = Collection(name="Doe Estate")
+    db.add(collection)
+    db.flush()
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
+    db.commit()
+    stored = []
+    monkeypatch.setattr(
+        "app.routers.documents.minio_client.put_object", lambda bucket, key, *a, **k: stored.append(key)
+    )
+
+    response = client.post(
+        f"/collections/{collection.id}/documents",
+        files={"file": ("../contratos/2024/arrendamiento.pdf", b"x", "application/pdf")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["source_filename"] == "contratos/2024/arrendamiento.pdf"
+    [key] = stored
+    assert key.startswith(f"collection-{collection.id}/doc-")
+    assert key.endswith("/contratos/2024/arrendamiento.pdf") and ".." not in key.split("/")
 
 
 def test_an_upload_that_fails_to_save_takes_its_file_back_out_of_storage(

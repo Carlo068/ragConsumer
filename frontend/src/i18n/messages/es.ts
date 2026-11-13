@@ -21,7 +21,7 @@ export const es: Messages = {
   },
   nav: {
     collections: "Asuntos",
-    connect: "Conectar mi IA",
+    connect: "Conectar IA",
     admin: "Usuarios e invitaciones",
     signOut: "Cerrar sesión",
   },
@@ -175,18 +175,35 @@ export const es: Messages = {
   },
   connect: {
     title: "Conectar mi IA",
-    subtitle: "Permita que su propio asistente de IA busque en sus asuntos",
-    beforeTitle: "Antes de conectar",
-    before1:
-      "Su asistente de IA se conecta a una sola dirección y entra con su propia llave de acceso. Solo puede buscar en los asuntos que usted le haya activado en la lista de asuntos, y solo mientras usted siga teniendo acceso a ellos.",
-    before2:
-      "Lo que usted active aquí afecta solamente a su propia IA, nunca a la de un colega. Desactive un asunto en esa lista cuando quiera mantenerlo en privado.",
-    clientTitle: "Conecte su cliente MCP",
+    subtitle:
+      "Siga estos cuatro pasos una sola vez y su asistente de IA podrá buscar en los asuntos que usted elija.",
+    done: "Listo",
+    step1Title: "Elija qué asuntos puede ver su IA",
+    step1Intro:
+      "Su IA solo puede buscar en los asuntos que usted active aquí, y solo mientras usted siga teniendo acceso a ellos. Esto es solo para usted: nunca cambia lo que puede ver la IA de un colega.",
+    step1Empty:
+      "Todavía no tiene acceso a ningún asunto. Pida a quien administra un asunto que lo agregue.",
+    step1Manage: "Ir a mis asuntos",
+    step2Title: "Cree su llave de acceso personal",
+    step3Title: "Péguela en su asistente de IA",
+    step3Intro:
+      "En su asistente de IA, agregue una conexión nueva (puede llamarse «servidor MCP» o «conector») y escriba estos dos datos:",
+    addressLabel: "Dirección del servidor",
+    keyPlaceholder: "Cree una llave en el paso 2 y aparecerá aquí, lista para copiar.",
+    step3Note:
+      "Trate la llave como una contraseña. Si la pierde o la comparte por error, revóquela en el paso 2 y cree otra.",
+    step4Title: "Pruebe con una pregunta",
+    step4Intro: "Ya conectado, pídale a su asistente algo como:",
+    sample1: "¿Qué archivos tengo en mis asuntos?",
+    sample2: "Busca en mis documentos las cláusulas de rescisión y dime en qué archivo están.",
+    sample3: "Resume lo que dicen mis documentos sobre el pago de la renta.",
+    advancedTitle: "Avanzado: comandos de conexión",
+    advancedIntro:
+      "Para quien configura conexiones desde una línea de comandos o un archivo de configuración.",
     cliLabel: "claude mcp add (línea de comandos)",
     jsonLabel: ".mcp.json",
   },
   tokens: {
-    title: "Sus llaves de acceso",
     intro:
       "Una llave de acceso permite que su asistente de IA busque, en su nombre, en los asuntos a los que usted tiene acceso. Cree una por dispositivo o aplicación y revóquela si pierde el dispositivo. Nunca la comparta: quien la tenga puede buscar en sus asuntos.",
     nameLabel: "Nombre (por ejemplo, Claude en mi laptop)",

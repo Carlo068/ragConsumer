@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link, NavLink } from "react-router-dom"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -23,30 +23,47 @@ export function Navbar() {
   const { t } = useI18n()
   if (!user) return null
 
+  // The places people actually go, always in view (not hidden in a menu).
+  const links = [
+    { to: "/collections", label: t("nav.collections") },
+    { to: "/connect", label: t("nav.connect") },
+    ...(user.is_admin ? [{ to: "/admin", label: t("nav.admin") }] : []),
+  ]
+
   return (
-    <nav className="flex items-center justify-between border-b px-6 py-3">
-      <Link to="/collections" className="font-semibold">
-        ragConsumer
-      </Link>
+    <nav className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
+      <div className="flex flex-wrap items-center gap-6">
+        <Link to="/collections" className="font-semibold">
+          ragConsumer
+        </Link>
+        <div className="flex items-center gap-4 text-sm">
+          {links.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) =>
+                isActive ? "font-medium underline underline-offset-4" : "text-muted-foreground hover:text-foreground"
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+      </div>
       <div className="flex items-center gap-4">
-      <LanguageSwitcher />
-      <DropdownMenu>
-        <DropdownMenuTrigger>
-          <Avatar>
-            <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
-          </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem render={<Link to="/collections">{t("nav.collections")}</Link>} />
-          <DropdownMenuItem render={<Link to="/connect">{t("nav.connect")}</Link>} />
-          {user.is_admin && (
-            <DropdownMenuItem render={<Link to="/admin">{t("nav.admin")}</Link>} />
-          )}
-          <DropdownMenuItem variant="destructive" onClick={() => logout()}>
-            {t("nav.signOut")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <LanguageSwitcher />
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Avatar>
+              <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem variant="destructive" onClick={() => logout()}>
+              {t("nav.signOut")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
   )

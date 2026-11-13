@@ -23,8 +23,9 @@ services:
     command: server /data --console-address ":9001"
     environment:
       # The root account is only for administration (minio-init, the console).
-      # No application uses it: the backend and the worker each have their own
-      # limited user, created by minio-init below.
+      # No running application uses it: the backend and the worker each have their
+      # own limited user, created by minio-init below. Only the on-demand backup
+      # tool uses it, to read (and on restore, write) every document.
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env (python scripts/generate_env.py)}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env (python scripts/generate_env.py)}
       # Registers a webhook notification target named INGEST -- minio-init
@@ -153,6 +154,43 @@ services:
     ports:
       - "127.0.0.1:8002:8002"
 
+  # On-demand backup and restore tool (never runs by itself):
+  #   docker compose --profile tools run --rm backup backup
+  # See docs/deployment/05-backups.md. Backups are encrypted to a public key,
+  # copied to an off-server bucket, and pruned by the retention policy.
+  backup:
+    profiles: ["tools"]
+    image: ragconsumer-backup
+    build: ./deploy/backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATABASE: ${POSTGRES_DB:-ragconsumer}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      MINIO_BUCKET: documents
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-ragconsumer}
+      BACKUP_S3_PROVIDER: ${BACKUP_S3_PROVIDER:-Other}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      BACKUP_PRUNE_REMOTE: ${BACKUP_PRUNE_REMOTE:-true}
+      BACKUP_ALLOW_LOCAL_ONLY: ${BACKUP_ALLOW_LOCAL_ONLY:-false}
+    volumes:
+      - backup_data:/backups
+
   frontend:
     build:
       context: ./frontend
@@ -163,6 +201,7 @@ services:
       - "127.0.0.1:5173:80"
 
 volumes:
+  backup_data:
   postgres_data:
   minio_data:
   qdrant_data:

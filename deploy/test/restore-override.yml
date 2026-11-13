@@ -1,0 +1,8 @@
+# Used only by deploy/test-backup.sh: a second, empty copy of the data stores
+# (project "ragrestore") to restore into, with no published ports so it cannot
+# collide with the running stack.
+services:
+  postgres:
+    ports: !reset []
+  minio:
+    ports: !reset []

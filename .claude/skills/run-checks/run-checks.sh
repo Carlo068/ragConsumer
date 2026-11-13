@@ -46,6 +46,7 @@ frontend_lint()      { cd "$ROOT/frontend" && npx oxlint; }   # warnings don't f
 run "backend pytest"      backend_tests
 run "mcp_server pytest"    service_tests mcp_server mcp_server
 run "worker pytest"        service_tests ingestion_worker ingestion-worker
+run "backup retention"     bash -c "cd \"$ROOT/deploy/backup\" && python -m unittest -q test_retention"
 run "frontend tsc"        frontend_typecheck
 run "frontend vitest"     frontend_tests
 run "frontend oxlint"     frontend_lint

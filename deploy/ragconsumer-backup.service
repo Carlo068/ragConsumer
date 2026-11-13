@@ -1,0 +1,12 @@
+[Unit]
+Description=ragConsumer encrypted backup (database, documents, search index)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/home/deploy/ragConsumer
+ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tools run --rm -T backup backup
+# A backup must never hang forever; a large archive gets up to 3 hours.
+TimeoutStartSec=3h

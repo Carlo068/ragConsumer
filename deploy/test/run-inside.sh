@@ -51,6 +51,23 @@ SKIP_DOCKER=1 bash deploy/check-hardening.sh >/dev/null 2>&1 && bad "did not not
 ufw delete allow 5432/tcp >/dev/null
 SKIP_DOCKER=1 bash deploy/check-hardening.sh >/dev/null 2>&1 && ok "passes again once fixed" || bad "still failing after the fix"
 
+echo "Backup timer"
+printf '#!/bin/sh
+exit 0
+' > /usr/bin/docker; chmod +x /usr/bin/docker
+printf '[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+' > /etc/systemd/system/docker.service; systemctl daemon-reload  # stand-in: the test machine has no Docker
+mkdir -p /home/deploy/ragConsumer; cp -r /root/deploy /home/deploy/ragConsumer/deploy
+bash deploy/install-backup-timer.sh >/dev/null 2>&1 && ok "backup timer installs" || bad "backup timer failed to install"
+bash deploy/install-backup-timer.sh >/dev/null 2>&1 && ok "and can be installed again" || bad "second install failed"
+systemctl is-enabled ragconsumer-backup.timer >/dev/null 2>&1 && ok "the timer is enabled" || bad "timer not enabled"
+systemctl is-active ragconsumer-backup.timer >/dev/null 2>&1 && ok "and scheduled (survives reboots, catches up if the server was off)" || bad "timer not active"
+[[ -z "$(systemd-analyze verify /etc/systemd/system/ragconsumer-backup.service /etc/systemd/system/ragconsumer-backup.timer 2>&1)" ]] && ok "systemd finds nothing wrong with the units" || bad "systemd-analyze reports problems: $(systemd-analyze verify /etc/systemd/system/ragconsumer-backup.service /etc/systemd/system/ragconsumer-backup.timer 2>&1 | head -3)"
+systemctl start ragconsumer-backup.service >/dev/null 2>&1 && ok "running it by hand works (stub docker)" || bad "service run failed"
+
 echo
 if [[ $fail -eq 0 ]]; then echo "HARDENING TESTS PASSED"; else echo "HARDENING TESTS FAILED"; fi
 exit $fail

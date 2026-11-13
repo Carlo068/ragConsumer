@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly ragConsumer backup
+
+[Timer]
+# 02:30 server time, when nobody is working. Persistent: if the server was off
+# at that time, the backup runs as soon as it is back.
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -21,5 +21,11 @@ class Settings(BaseSettings):
     # A document still "processing" after this long is marked failed (retryable).
     STUCK_AFTER_MINUTES: float = 60.0
 
+    # Text recognition for scanned PDFs. A PDF with fewer than this many
+    # characters of text per page is treated as a scan and run through OCR.
+    OCR_LANGUAGES: str = "spa+eng"
+    OCR_MIN_CHARS_PER_PAGE: int = 50
+    OCR_TIMEOUT_SECONDS: int = 1800
+
 
 settings = Settings()

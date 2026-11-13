@@ -20,7 +20,7 @@ class FileConversionException(Exception):
 
 def test_an_empty_file_gets_the_no_text_explanation():
     assert failure_reason(NoTextFound()) == NO_TEXT
-    assert "OCR" in NO_TEXT
+    assert "scan" in NO_TEXT
 
 
 @pytest.mark.parametrize("error", [UnsupportedFormatException("x"), FileConversionException("x")])

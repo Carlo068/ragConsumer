@@ -57,6 +57,12 @@ def main() -> int:
         with ENV_PATH.open("a", encoding="utf-8", newline="\n") as f:
             f.write(prefix + "\n".join(lines) + "\n")
 
+    if ENV_PATH.exists():
+        try:
+            ENV_PATH.chmod(0o600)  # secrets: readable by the owner only (no effect on Windows)
+        except OSError:
+            pass
+
     print(f"{ENV_PATH}: added {len(added)} variable(s)" + (f": {', '.join(added)}" if added else ""))
 
     weak = [n for n in SECRET_NAMES if existing.get(n, "").lower() in WEAK]

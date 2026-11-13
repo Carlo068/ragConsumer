@@ -122,6 +122,11 @@ services:
       # them means re-indexing (backend/scripts/reindex_all.py).
       DENSE_MODEL: ${DENSE_MODEL:-jinaai/jina-embeddings-v2-base-es}
       BM25_LANGUAGE: ${BM25_LANGUAGE:-spanish}
+      # Downloaded models are kept in a volume, so redeploying does not fetch
+      # ~600 MB again (and does not depend on the internet being reachable).
+      FASTEMBED_CACHE_PATH: /models
+    volumes:
+      - worker_models:/models
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,6 +151,9 @@ services:
       PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:8002}
       DENSE_MODEL: ${DENSE_MODEL:-jinaai/jina-embeddings-v2-base-es}
       BM25_LANGUAGE: ${BM25_LANGUAGE:-spanish}
+      FASTEMBED_CACHE_PATH: /models
+    volumes:
+      - mcp_models:/models
     depends_on:
       postgres:
         condition: service_healthy
@@ -202,6 +210,8 @@ services:
 
 volumes:
   backup_data:
+  worker_models:
+  mcp_models:
   postgres_data:
   minio_data:
   qdrant_data:

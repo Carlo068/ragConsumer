@@ -3,8 +3,6 @@ import tempfile
 import uuid
 
 from fastembed import SparseTextEmbedding, TextEmbedding
-from langchain_core.documents import Document as LcDocument
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from markitdown import MarkItDown
 from minio import Minio
 from qdrant_client import QdrantClient, models
@@ -12,6 +10,7 @@ from sqlalchemy import create_engine, text
 
 from app.config import settings
 from app import formats
+from app.chunking import chunk_markdown
 from app.failures import NoTextFound, failure_reason
 from app.ocr import count_pdf_pages, needs_ocr, run_ocr
 
@@ -49,11 +48,6 @@ def download_to_temp(bucket: str, key: str, filename: str) -> str:
 
 # --- Conversion + chunking ---------------------------------------------------
 _converter = MarkItDown()
-_header_splitter = MarkdownHeaderTextSplitter(
-    headers_to_split_on=[("#", "h1"), ("##", "h2"), ("###", "h3")],
-    strip_headers=False,
-)
-_recursive_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
 
 
 def _markitdown(path: str) -> str:
@@ -88,13 +82,6 @@ def convert_with_ocr(path: str) -> str:
                 os.remove(ocr_path)
     return markdown_text
 
-
-def chunk_markdown(markdown_text: str) -> list[str]:
-    header_docs = _header_splitter.split_text(markdown_text)
-    if not header_docs:
-        header_docs = [LcDocument(page_content=markdown_text)]
-    final_docs = _recursive_splitter.split_documents(header_docs)
-    return [d.page_content for d in final_docs if d.page_content.strip()]
 
 
 # --- Embedding + Qdrant upsert -----------------------------------------------

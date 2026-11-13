@@ -2,9 +2,11 @@ import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PromptDialog } from "@/components/common/PromptDialog"
 import { useCollections } from "@/hooks/useCollections"
+import { useI18n } from "@/i18n/useI18n"
 import { CollectionRow } from "./components/CollectionRow"
 
 export function CollectionsPage() {
+  const { t } = useI18n()
   const {
     collections,
     loading,
@@ -18,21 +20,21 @@ export function CollectionsPage() {
   return (
     <div className="mx-auto max-w-2xl p-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Collections</h1>
+        <h1 className="text-2xl font-semibold">{t("collections.title")}</h1>
         <PromptDialog
           trigger={
             <Button>
               <Plus />
-              New
+              {t("collections.new")}
             </Button>
           }
-          title="New collection"
-          confirmLabel="Create"
+          title={t("collections.newTitle")}
+          confirmLabel={t("collections.create")}
           onSubmit={createCollection}
         />
       </div>
 
-      {loading && <p>Loading...</p>}
+      {loading && <p>{t("common.loading")}</p>}
       {error && <p className="text-destructive">{error}</p>}
 
       <div className="flex flex-col gap-3">

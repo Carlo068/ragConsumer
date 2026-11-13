@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { CopyBlock } from "@/components/common/CopyBlock"
+import { useI18n } from "@/i18n/useI18n"
 import type { ApiToken, ApiTokenCreated } from "@/models/token"
 
 interface TokensPanelProps {
@@ -15,11 +16,8 @@ interface TokensPanelProps {
   onCreated?: (created: ApiTokenCreated) => void
 }
 
-function formatDate(value: string) {
-  return new Date(value + "Z").toLocaleDateString()
-}
-
 export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPanelProps) {
+  const { t, errorText, formatDate } = useI18n()
   const [name, setName] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +33,7 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
       onCreated?.(result)
       setName("")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the access key")
+      setError(errorText(err, "tokens.createFailed"))
     } finally {
       setSubmitting(false)
     }
@@ -44,18 +42,16 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your access keys</CardTitle>
+        <CardTitle>{t("tokens.title")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-muted-foreground text-sm">
-          An access key lets your AI assistant search the matters you have access to, as you. Create
-          one per device or app, and revoke it if you lose the device. Never share it: anyone who
-          has it can search your matters.
+          {t("tokens.intro")}
         </p>
 
         <form onSubmit={handleSubmit} className="flex items-end gap-3">
           <div className="flex flex-1 flex-col gap-2">
-            <Label htmlFor="token-name">Name (for example, Claude on my laptop)</Label>
+            <Label htmlFor="token-name">{t("tokens.nameLabel")}</Label>
             <Input
               id="token-name"
               value={name}
@@ -65,7 +61,7 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
             />
           </div>
           <Button type="submit" disabled={submitting || !name.trim()}>
-            {submitting ? "Creating..." : "Create access key"}
+            {submitting ? t("tokens.creating") : t("tokens.create")}
           </Button>
         </form>
         {error && <p className="text-destructive text-sm">{error}</p>}
@@ -73,16 +69,15 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
         {created && (
           <div className="flex flex-col gap-2 rounded-lg border p-4">
             <p className="text-sm">
-              Your new key <strong>{created.name}</strong>. Copy it now: this is the only time it is
-              shown. The connection commands below already include it.
+              {t("tokens.newKey", { name: created.name })}
             </p>
-            <CopyBlock label="Access key" code={created.token} />
+            <CopyBlock label={t("tokens.keyLabel")} code={created.token} />
           </div>
         )}
 
         <div className="flex flex-col gap-2">
           {tokens.length === 0 && (
-            <p className="text-muted-foreground text-sm">You have no access keys yet.</p>
+            <p className="text-muted-foreground text-sm">{t("tokens.none")}</p>
           )}
           {tokens.map((token) => (
             <div key={token.id} className="flex items-center justify-between gap-3 text-sm">
@@ -91,18 +86,23 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
                   {token.name} <span className="text-muted-foreground">({token.prefix}…)</span>
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  Created {formatDate(token.created_at)} · Expires {formatDate(token.expires_at)} ·{" "}
-                  {token.last_used_at ? `Last used ${formatDate(token.last_used_at)}` : "Never used"}
+                  {t("tokens.detail", {
+                    created: formatDate(token.created_at),
+                    expires: formatDate(token.expires_at),
+                    used: token.last_used_at
+                      ? t("tokens.lastUsed", { date: formatDate(token.last_used_at) })
+                      : t("tokens.neverUsed"),
+                  })}
                 </p>
               </div>
               <ConfirmDialog
                 trigger={
                   <Button variant="ghost" size="sm">
-                    Revoke
+                    {t("tokens.revoke")}
                   </Button>
                 }
-                title={`Revoke "${token.name}"?`}
-                description="Any AI assistant using this key loses access immediately. You can create a new key later."
+                title={t("tokens.revokeTitle", { name: token.name })}
+                description={t("tokens.revokeDescription")}
                 confirmLabel="Revoke"
                 onConfirm={() => onRevoke(token.id)}
               />

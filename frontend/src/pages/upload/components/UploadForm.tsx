@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useI18n } from "@/i18n/useI18n"
 
 interface UploadFormProps {
   onUpload: (file: File) => Promise<void>
@@ -14,6 +15,7 @@ interface UploadFormProps {
 const MB = 1024 * 1024
 
 export function UploadForm({ onUpload, uploading, maxUploadBytes }: UploadFormProps) {
+  const { t, errorText } = useI18n()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -24,7 +26,10 @@ export function UploadForm({ onUpload, uploading, maxUploadBytes }: UploadFormPr
 
     if (maxUploadBytes && selectedFile.size > maxUploadBytes) {
       setError(
-        `This file is ${(selectedFile.size / MB).toFixed(1)} MB. The limit is ${Math.round(maxUploadBytes / MB)} MB.`
+        t("upload.tooBig", {
+          size: (selectedFile.size / MB).toFixed(1),
+          limit: Math.round(maxUploadBytes / MB),
+        })
       )
       return
     }
@@ -34,7 +39,7 @@ export function UploadForm({ onUpload, uploading, maxUploadBytes }: UploadFormPr
       setSelectedFile(null)
       if (inputRef.current) inputRef.current.value = ""
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed")
+      setError(errorText(err, "upload.failed"))
     }
   }
 
@@ -43,11 +48,11 @@ export function UploadForm({ onUpload, uploading, maxUploadBytes }: UploadFormPr
       <div className="flex items-end gap-3">
         <div className="flex flex-1 flex-col gap-2">
           <Label htmlFor="file">
-            Document
+            {t("upload.document")}
             {maxUploadBytes ? (
               <span className="text-muted-foreground font-normal">
                 {" "}
-                (up to {Math.round(maxUploadBytes / MB)} MB)
+                {t("upload.upTo", { mb: Math.round(maxUploadBytes / MB) })}
               </span>
             ) : null}
           </Label>
@@ -60,7 +65,7 @@ export function UploadForm({ onUpload, uploading, maxUploadBytes }: UploadFormPr
           />
         </div>
         <Button type="submit" disabled={!selectedFile || uploading}>
-          {uploading ? "Uploading..." : "Upload"}
+          {uploading ? t("upload.submitting") : t("upload.submit")}
         </Button>
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}

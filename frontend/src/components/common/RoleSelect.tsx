@@ -1,10 +1,7 @@
 import type { CollectionRole } from "@/models/collection"
+import { useI18n } from "@/i18n/useI18n"
 
-const OPTIONS: { value: CollectionRole; label: string; hint: string }[] = [
-  { value: "viewer", label: "Viewer", hint: "can search and see files" },
-  { value: "editor", label: "Editor", hint: "can also add and remove files" },
-  { value: "owner", label: "Owner", hint: "can also manage the collection and its members" },
-]
+const VALUES: CollectionRole[] = ["viewer", "editor", "owner"]
 
 interface RoleSelectProps {
   value: CollectionRole
@@ -14,6 +11,7 @@ interface RoleSelectProps {
 }
 
 export function RoleSelect({ value, onChange, disabled, "aria-label": ariaLabel }: RoleSelectProps) {
+  const { t } = useI18n()
   return (
     <select
       aria-label={ariaLabel}
@@ -22,9 +20,9 @@ export function RoleSelect({ value, onChange, disabled, "aria-label": ariaLabel 
       onChange={(e) => onChange(e.target.value as CollectionRole)}
       className="border-input bg-background h-8 rounded-lg border px-2 text-sm disabled:opacity-50"
     >
-      {OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label} — {o.hint}
+      {VALUES.map((role) => (
+        <option key={role} value={role}>
+          {t(`roles.${role}`)} — {t(`roles.${role}Hint`)}
         </option>
       ))}
     </select>

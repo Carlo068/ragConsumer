@@ -20,32 +20,31 @@ export interface AuditFilters {
   actor?: string
 }
 
-// Plain-language names for the action codes the server records.
-export const AUDIT_ACTION_LABELS: Record<string, string> = {
-  login: "Signed in",
-  login_failed: "Failed sign-in attempt",
-  invite_created: "Invitation created",
-  invite_revoked: "Invitation revoked",
-  invite_accepted: "Invitation accepted",
-  matter_created: "Matter created",
-  matter_renamed: "Matter renamed",
-  matter_deleted: "Matter deleted",
-  member_added: "Person added to a matter",
-  member_role_changed: "Role changed",
-  member_removed: "Person removed from a matter",
-  document_uploaded: "File uploaded",
-  document_deleted: "File deleted",
-  document_reingested: "File retried",
-  token_created: "Access key created",
-  token_revoked: "Access key revoked",
-  ai_access_enabled: "AI turned on for a matter",
-  ai_access_disabled: "AI turned off for a matter",
-  mcp_search: "AI searched",
-  mcp_get_content: "AI read a passage",
-  mcp_get_document: "AI read a document",
-  mcp_list_documents: "AI listed files",
-  audit_viewed: "Activity log opened",
-  audit_exported: "Activity log downloaded",
-}
-
-export const auditActionLabel = (action: string) => AUDIT_ACTION_LABELS[action] ?? action
+// The action codes the server records. Their names in each language are in the
+// message catalogs under audit.actions.
+export const AUDIT_ACTIONS = [
+  "login",
+  "login_failed",
+  "invite_created",
+  "invite_revoked",
+  "invite_accepted",
+  "matter_created",
+  "matter_renamed",
+  "matter_deleted",
+  "member_added",
+  "member_role_changed",
+  "member_removed",
+  "document_uploaded",
+  "document_deleted",
+  "document_reingested",
+  "token_created",
+  "token_revoked",
+  "ai_access_enabled",
+  "ai_access_disabled",
+  "mcp_search",
+  "mcp_get_content",
+  "mcp_get_document",
+  "mcp_list_documents",
+  "audit_viewed",
+  "audit_exported",
+] as const

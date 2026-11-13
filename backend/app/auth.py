@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.errors import ApiError
 from app.models import ROLE_RANK, CollectionMember, CollectionRole, User
 
 _hasher = PasswordHasher()
@@ -32,12 +33,12 @@ def verify_password(password: str, password_hash: str) -> bool:
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user_id = request.session.get("user_id")
     if user_id is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+        raise ApiError(status.HTTP_401_UNAUTHORIZED, "not_authenticated", "Not authenticated")
 
     user = db.get(User, uuid.UUID(user_id))
     if user is None:
         request.session.clear()
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+        raise ApiError(status.HTTP_401_UNAUTHORIZED, "not_authenticated", "Not authenticated")
 
     return user
 
@@ -46,7 +47,7 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     # 403 is fine here, unlike the 404 used for matters: the admin pages'
     # existence isn't sensitive, only what's inside matters is.
     if not current_user.is_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Administrator access required")
+        raise ApiError(status.HTTP_403_FORBIDDEN, "admin_required", "Administrator access required")
     return current_user
 
 
@@ -69,11 +70,13 @@ def require_collection_role(
         )
     )
     if member is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "matter_not_found", "Collection not found")
     if ROLE_RANK[member.role] < ROLE_RANK[minimum]:
-        raise HTTPException(
+        raise ApiError(
             status.HTTP_403_FORBIDDEN,
+            "role_required",
             f"This action requires the {minimum.value} role or higher on this collection",
+            role=minimum.value,
         )
     return member
 

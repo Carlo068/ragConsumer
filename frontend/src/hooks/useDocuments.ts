@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { documentsService } from "@/services/documentsService"
 import type { Document } from "@/models/document"
+import { useI18n } from "@/i18n/useI18n"
 
 const POLL_INTERVAL_MS = 2000
 
@@ -9,6 +10,7 @@ function hasPendingDocument(documents: Document[]): boolean {
 }
 
 export function useDocuments(collectionId: string) {
+  const { errorText } = useI18n()
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -20,11 +22,11 @@ export function useDocuments(collectionId: string) {
       setDocuments(result)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load documents")
+      setError(errorText(err, "upload.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [collectionId])
+  }, [collectionId, errorText])
 
   useEffect(() => {
     refresh()

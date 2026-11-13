@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useI18n } from "@/i18n/useI18n"
 
 interface ConfirmDialogProps {
   trigger: ReactElement
@@ -23,9 +24,10 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
-  confirmLabel = "Delete",
+  confirmLabel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
 
   function handleConfirm() {
@@ -42,12 +44,12 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-white hover:bg-destructive/90"
             onClick={handleConfirm}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("common.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

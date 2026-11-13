@@ -2,10 +2,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000
 
 export class ApiError extends Error {
   status: number
+  // Stable machine-readable reason from the server (and any values its message
+  // needs). The UI shows its own translation of the code; `message` is the
+  // server's English text, kept for logs and debugging only.
+  code?: string
+  params?: Record<string, string | number>
 
-  constructor(status: number, message: string) {
+  constructor(
+    status: number,
+    message: string,
+    code?: string,
+    params?: Record<string, string | number>
+  ) {
     super(message)
     this.status = status
+    this.code = code
+    this.params = params
   }
 }
 
@@ -24,7 +36,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    throw new ApiError(response.status, body?.detail ?? response.statusText)
+    throw new ApiError(
+      response.status,
+      typeof body?.detail === "string" ? body.detail : response.statusText,
+      typeof body?.code === "string" ? body.code : undefined,
+      body?.params
+    )
   }
 
   if (response.status === 204) {

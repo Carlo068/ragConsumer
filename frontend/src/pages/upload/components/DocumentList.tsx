@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { StatusBadge } from "@/components/common/StatusBadge"
+import type { MessageKey, Translate } from "@/i18n/core"
+import { useI18n } from "@/i18n/useI18n"
 import type { Document } from "@/models/document"
 
 interface DocumentListProps {
@@ -12,6 +14,14 @@ interface DocumentListProps {
   canRetry?: boolean
 }
 
+const FAILURE_CODES = ["no_text", "unreadable", "timed_out", "index_outdated", "unexpected"]
+
+// The worker stores a short code for why a file failed; show it in the reader's
+// language. (Older entries stored English text, which is shown as it is.)
+function failureText(message: string, t: Translate) {
+  return FAILURE_CODES.includes(message) ? t(`upload.failure.${message}` as MessageKey) : message
+}
+
 export function DocumentList({
   documents,
   onDelete,
@@ -19,8 +29,9 @@ export function DocumentList({
   onRetry,
   canRetry = false,
 }: DocumentListProps) {
+  const { t } = useI18n()
   if (documents.length === 0) {
-    return <p className="text-muted-foreground text-sm">No documents uploaded yet.</p>
+    return <p className="text-muted-foreground text-sm">{t("upload.empty")}</p>
   }
 
   return (
@@ -34,25 +45,25 @@ export function DocumentList({
                 <StatusBadge status={doc.status} />
                 {canRetry && onRetry && doc.status === "failed" && (
                   <Button variant="outline" size="sm" onClick={() => onRetry(doc.id)}>
-                    Try again
+                    {t("upload.retry")}
                   </Button>
                 )}
                 {canDelete && (
                   <ConfirmDialog
                     trigger={
                       <Button variant="ghost" size="sm">
-                        Delete
+                        {t("common.delete")}
                       </Button>
                     }
-                    title={`Delete "${doc.source_filename}"?`}
-                    description="This permanently removes the file and everything indexed from it. This can't be undone."
+                    title={t("upload.deleteTitle", { name: doc.source_filename })}
+                    description={t("upload.deleteDescription")}
                     onConfirm={() => onDelete(doc.id)}
                   />
                 )}
               </div>
             </div>
             {doc.status === "failed" && doc.error_message && (
-              <p className="text-destructive text-xs">{doc.error_message}</p>
+              <p className="text-destructive text-xs">{failureText(doc.error_message, t)}</p>
             )}
           </CardContent>
         </Card>

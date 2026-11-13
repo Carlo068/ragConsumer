@@ -32,13 +32,16 @@ describe("useCollections", () => {
   })
 
   it("surfaces a load failure as an error instead of throwing", async () => {
-    mockedService.list.mockRejectedValue(new Error("network down"))
+    mockedService.list.mockRejectedValue(new TypeError("Failed to fetch"))
 
     const { result } = renderHook(() => useCollections())
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    expect(result.current.error).toBe("network down")
+    // Shown in the reader's language; the raw browser message never reaches the screen.
+    expect(result.current.error).toBe(
+      "We couldn't reach the server. Check your connection and try again."
+    )
   })
 
   it("createCollection() creates then refreshes the list", async () => {

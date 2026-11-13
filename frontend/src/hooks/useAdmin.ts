@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react"
 import { adminService } from "@/services/adminService"
 import type { Invite, InviteCreated } from "@/models/invite"
 import type { AdminUser } from "@/models/user"
+import { useI18n } from "@/i18n/useI18n"
 
 export function useAdmin() {
+  const { errorText } = useI18n()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,11 +21,11 @@ export function useAdmin() {
       setInvites(inviteList)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load users")
+      setError(errorText(err, "admin.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [errorText])
 
   useEffect(() => {
     refresh()

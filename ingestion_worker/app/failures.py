@@ -1,7 +1,7 @@
-"""Turns an indexing failure into a sentence a lawyer can act on.
+"""Turns an indexing failure into a short code the web app can explain.
 
 The raw exception (paths, library internals) goes to the worker's log only; the
-person sees one of these. Kept free of heavy imports so it can be tested alone.
+person sees a plain-language message for one of these codes. Kept free of heavy imports so it can be tested alone.
 """
 
 
@@ -26,23 +26,14 @@ class OcrFailed(Exception):
     """Text recognition could not process the file (or ran out of time)."""
 
 
-NO_TEXT = (
-    "No text could be found in this file. If it is a scan or a photo of a document, "
-    "it may be too faint, blurry or crooked to read. Try a clearer scan."
-)
-UNREADABLE = (
-    "This file could not be read. It may be damaged, protected by a password, "
-    "or in a format that is not supported."
-)
-TIMED_OUT = "Processing this file took too long and was stopped. You can try again."
-INDEX_OUTDATED = (
-    "The search index for this matter was built with an older search method and has to be "
-    "rebuilt before new files can be added. Tell your administrator."
-)
-UNEXPECTED = (
-    "Something went wrong while processing this file. Try again, and if it keeps "
-    "failing, tell your administrator."
-)
+# What is stored for a failed file is one of these short codes, never a sentence:
+# the web app turns each into plain language in the reader's own language
+# (frontend/src/i18n/messages, upload.failure.*).
+NO_TEXT = "no_text"
+UNREADABLE = "unreadable"
+TIMED_OUT = "timed_out"
+INDEX_OUTDATED = "index_outdated"
+UNEXPECTED = "unexpected"
 
 # markitdown's own exception types, matched by name so this module needs no import.
 _UNREADABLE_ERRORS = {

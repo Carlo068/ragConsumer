@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app import audit
 from app.auth import DUMMY_PASSWORD_HASH, get_current_user, verify_password
 from app.db import get_db
+from app.errors import ApiError
 from app.models import User
 from app.schemas import LoginRequest, UserOut
 
@@ -24,7 +25,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         # how a guessing attack shows up. The password is never recorded.
         audit.record(db, audit.LOGIN_FAILED, target=payload.email.lower(), request=request)
         db.commit()
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+        raise ApiError(status.HTTP_401_UNAUTHORIZED, "invalid_credentials", "Invalid credentials")
 
     request.session.clear()
     request.session["user_id"] = str(user.id)

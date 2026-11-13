@@ -17,9 +17,8 @@ class FileConversionException(Exception):
     pass
 
 
-def test_an_empty_file_gets_the_no_text_explanation():
-    assert failure_reason(NoTextFound()) == NO_TEXT
-    assert "scan" in NO_TEXT
+def test_an_empty_file_gets_the_no_text_code():
+    assert failure_reason(NoTextFound()) == NO_TEXT == "no_text"
 
 
 @pytest.mark.parametrize("error", [UnsupportedFormatException("x"), FileConversionException("x")])
@@ -27,9 +26,9 @@ def test_an_unreadable_file_gets_the_unreadable_explanation(error):
     assert failure_reason(error) == UNREADABLE
 
 
-def test_anything_else_gets_a_generic_message_without_leaking_internals():
+def test_anything_else_gets_a_generic_code_without_leaking_internals():
     reason = failure_reason(RuntimeError("/srv/secret/path.pdf: boom"))
-    assert reason == UNEXPECTED
+    assert reason == UNEXPECTED == "unexpected"
     assert "secret" not in reason and "boom" not in reason
 
 

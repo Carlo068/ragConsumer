@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { PromptDialog } from "@/components/common/PromptDialog"
+import { useI18n } from "@/i18n/useI18n"
 import { canManageCollection, type Collection } from "@/models/collection"
 
 interface CollectionRowProps {
@@ -19,13 +20,14 @@ export function CollectionRow({
   onRename,
   onDelete,
 }: CollectionRowProps) {
+  const { t } = useI18n()
   return (
     <div className="flex items-center gap-3 rounded-lg border px-4 py-3">
       <Switch
         checked={collection.ai_enabled}
         onCheckedChange={onToggleAi}
-        aria-label={`Let my AI search ${collection.name}`}
-        title="Let my AI search this matter"
+        aria-label={t("collections.aiSwitch", { name: collection.name })}
+        title={t("collections.aiSwitchTitle")}
       />
       <Link
         to={`/collections/${collection.id}/upload`}
@@ -34,29 +36,29 @@ export function CollectionRow({
         {collection.name}
       </Link>
       {!canManageCollection(collection.role) && (
-        <span className="text-muted-foreground text-xs capitalize">{collection.role}</span>
+        <span className="text-muted-foreground text-xs">{t(`roles.${collection.role}`)}</span>
       )}
       {canManageCollection(collection.role) && (
         <>
           <PromptDialog
             trigger={
-              <Button variant="ghost" size="icon-sm" aria-label="Rename collection">
+              <Button variant="ghost" size="icon-sm" aria-label={t("collections.renameLabel")}>
                 <Pencil />
               </Button>
             }
-            title={`Rename "${collection.name}"`}
+            title={t("collections.renameTitle", { name: collection.name })}
             initialValue={collection.name}
-            confirmLabel="Save"
+            confirmLabel={t("common.save")}
             onSubmit={onRename}
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm" aria-label="Delete collection">
+              <Button variant="ghost" size="icon-sm" aria-label={t("collections.deleteLabel")}>
                 <Trash2 />
               </Button>
             }
-            title={`Delete "${collection.name}"?`}
-            description="This permanently deletes the collection and every document in it. This can't be undone."
+            title={t("collections.deleteTitle", { name: collection.name })}
+            description={t("collections.deleteDescription")}
             onConfirm={onDelete}
           />
         </>

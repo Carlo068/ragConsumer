@@ -9,6 +9,7 @@ from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.config import settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import CollectionRole, Document, DocumentStatus, User
 from app.schemas import DocumentOut
 from app.storage import BUCKET_NAME, delete_object, minio_client
@@ -26,7 +27,7 @@ def safe_filename(raw: str | None) -> str:
     name = (raw or "").replace(chr(92), "/").rsplit("/", 1)[-1]
     name = "".join(ch for ch in name if ch.isprintable()).strip().lstrip(".")
     if not name:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The file needs a name")
+        raise ApiError(status.HTTP_400_BAD_REQUEST, "file_needs_name", "The file needs a name")
     if len(name) > MAX_FILENAME_LENGTH:
         stem, dot, extension = name.rpartition(".")
         extension = (dot + extension) if dot and len(extension) <= 10 else ""
@@ -51,9 +52,11 @@ async def upload_document(
     # without ever holding an arbitrarily large body in memory.
     contents = await file.read(settings.max_upload_bytes + 1)
     if len(contents) > settings.max_upload_bytes:
-        raise HTTPException(
+        raise ApiError(
             status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "file_too_large",
             f"File exceeds the {settings.MAX_UPLOAD_MB} MB upload limit",
+            max_mb=settings.MAX_UPLOAD_MB,
         )
 
     filename = safe_filename(file.filename)
@@ -128,12 +131,14 @@ def reingest_document(
         )
     )
     if document is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "document_not_found", "Document not found")
     if document.status == DocumentStatus.processing:
         # Being worked on right now. If it is truly stuck the worker's timeout
         # marks it failed, and then it can be retried.
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "This file is being processed right now. Try again in a moment."
+        raise ApiError(
+            status.HTTP_409_CONFLICT,
+            "document_busy",
+            "This file is being processed right now. Try again in a moment.",
         )
 
     # Drop what was indexed before so a retry can't leave stale passages behind.
@@ -166,7 +171,7 @@ def delete_document(
         )
     )
     if document is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "document_not_found", "Document not found")
 
     delete_document_chunks(str(collection_id), str(document_id))
     delete_object(document.object_key)

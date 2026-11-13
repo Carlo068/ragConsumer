@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.errors import ApiError, api_error_handler
 from app.routers import admin, ai_access, auth, collections, documents, invites, limits, members, tokens
 from app.storage import ensure_bucket
 
 app = FastAPI()
+app.add_exception_handler(ApiError, api_error_handler)
 
 
 @app.on_event("startup")

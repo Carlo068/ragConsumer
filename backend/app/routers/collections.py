@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import audit
 from app.auth import get_current_user, require_collection_role
 from app.db import get_db
+from app.errors import ApiError
 from app.models import (
     AiMatterSelection,
     Collection,
@@ -81,7 +82,7 @@ def rename_collection(
 
     collection = db.get(Collection, collection_id)
     if collection is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "matter_not_found", "Collection not found")
 
     previous_name = collection.name
     collection.name = payload.name
@@ -108,7 +109,7 @@ def delete_collection(
 
     collection = db.get(Collection, collection_id)
     if collection is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
+        raise ApiError(status.HTTP_404_NOT_FOUND, "matter_not_found", "Collection not found")
 
     # Clean up Qdrant + MinIO *before* the Postgres cascade removes the only
     # record that this matter ever existed -- neither system is FK-linked to

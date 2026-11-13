@@ -6,7 +6,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher"
 import { useAuth } from "@/hooks/useAuth"
+import { useI18n } from "@/i18n/useI18n"
 
 function getInitials(email: string): string {
   const localPart = email.split("@")[0]
@@ -18,6 +20,7 @@ function getInitials(email: string): string {
 
 export function Navbar() {
   const { user, logout } = useAuth()
+  const { t } = useI18n()
   if (!user) return null
 
   return (
@@ -25,6 +28,8 @@ export function Navbar() {
       <Link to="/collections" className="font-semibold">
         ragConsumer
       </Link>
+      <div className="flex items-center gap-4">
+      <LanguageSwitcher />
       <DropdownMenu>
         <DropdownMenuTrigger>
           <Avatar>
@@ -32,16 +37,17 @@ export function Navbar() {
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem render={<Link to="/collections">Collections</Link>} />
-          <DropdownMenuItem render={<Link to="/connect">Connect</Link>} />
+          <DropdownMenuItem render={<Link to="/collections">{t("nav.collections")}</Link>} />
+          <DropdownMenuItem render={<Link to="/connect">{t("nav.connect")}</Link>} />
           {user.is_admin && (
-            <DropdownMenuItem render={<Link to="/admin">Users & invitations</Link>} />
+            <DropdownMenuItem render={<Link to="/admin">{t("nav.admin")}</Link>} />
           )}
           <DropdownMenuItem variant="destructive" onClick={() => logout()}>
-            Sign out
+            {t("nav.signOut")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </nav>
   )
 }

@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useI18n } from "@/i18n/useI18n"
 
 interface PromptDialogProps {
   trigger: ReactElement
@@ -26,9 +27,10 @@ export function PromptDialog({
   title,
   description,
   initialValue = "",
-  confirmLabel = "Save",
+  confirmLabel,
   onSubmit,
 }: PromptDialogProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState(initialValue)
   const [submitting, setSubmitting] = useState(false)
@@ -69,12 +71,12 @@ export function PromptDialog({
             <DialogClose
               render={
                 <Button type="button" variant="outline">
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               }
             />
             <Button type="submit" disabled={!value.trim() || submitting}>
-              {submitting ? "Saving..." : confirmLabel}
+              {submitting ? t("common.saving") : (confirmLabel ?? t("common.save"))}
             </Button>
           </DialogFooter>
         </form>

@@ -31,7 +31,7 @@ describe("CollectionRow permissions", () => {
       renderRow(role)
       expect(screen.queryByLabelText("Rename collection")).not.toBeInTheDocument()
       expect(screen.queryByLabelText("Delete collection")).not.toBeInTheDocument()
-      expect(screen.getByText(role)).toBeInTheDocument()
+      expect(screen.getByText(role === "editor" ? "Editor" : "Viewer")).toBeInTheDocument()
     }
   )
 

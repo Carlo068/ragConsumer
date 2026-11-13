@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useI18n } from "@/i18n/useI18n"
 
 // Mirrors the backend's MIN_PASSWORD_LENGTH; the server enforces it anyway.
 const MIN_PASSWORD_LENGTH = 12
@@ -12,6 +13,7 @@ interface AcceptInviteFormProps {
 }
 
 export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
+  const { t, errorText } = useI18n()
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -20,11 +22,11 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Use at least ${MIN_PASSWORD_LENGTH} characters.`)
+      setError(t("invite.tooShort", { min: MIN_PASSWORD_LENGTH }))
       return
     }
     if (password !== confirm) {
-      setError("The two passwords don't match.")
+      setError(t("invite.mismatch"))
       return
     }
     setSubmitting(true)
@@ -32,7 +34,7 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
     try {
       await onSubmit(password)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create your account")
+      setError(errorText(err, "invite.failed"))
       setSubmitting(false)
     }
   }
@@ -40,11 +42,12 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <p className="text-sm">
-        You've been invited as <strong>{email}</strong>. Choose a password to finish creating
-        your account.
+        {t("invite.invitedAsBefore")}
+        <strong>{email}</strong>
+        {t("invite.invitedAsAfter")}
       </p>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="new-password">Password</Label>
+        <Label htmlFor="new-password">{t("invite.password")}</Label>
         <Input
           id="new-password"
           type="password"
@@ -52,10 +55,12 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <p className="text-muted-foreground text-xs">At least {MIN_PASSWORD_LENGTH} characters.</p>
+        <p className="text-muted-foreground text-xs">
+          {t("invite.passwordHint", { min: MIN_PASSWORD_LENGTH })}
+        </p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="confirm-password">Repeat password</Label>
+        <Label htmlFor="confirm-password">{t("invite.repeat")}</Label>
         <Input
           id="confirm-password"
           type="password"
@@ -66,7 +71,7 @@ export function AcceptInviteForm({ email, onSubmit }: AcceptInviteFormProps) {
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
       <Button type="submit" disabled={submitting}>
-        {submitting ? "Creating account..." : "Create account"}
+        {submitting ? t("invite.submitting") : t("invite.submit")}
       </Button>
     </form>
   )

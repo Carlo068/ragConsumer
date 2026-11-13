@@ -6,6 +6,12 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     SESSION_SECRET: str
+    # Browser origins allowed to call the API with credentials (comma separated).
+    # Empty in production, where the web app and the API share one address.
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    # The interactive API docs are for development; production turns them off.
+    DOCS_ENABLED: bool = True
+
     # Behind HTTPS (production) set SESSION_HTTPS_ONLY=true so the cookie is
     # never sent over plain HTTP. Sessions last SESSION_MAX_AGE_HOURS.
     SESSION_HTTPS_ONLY: bool = False
@@ -38,6 +44,11 @@ class Settings(BaseSettings):
     # MCP personal access tokens
     TOKEN_TTL_DAYS: int = 90
     MAX_ACTIVE_TOKENS_PER_USER: int = 10
+
+
+def parse_origins(raw: str) -> list[str]:
+    """"a, b,," -> ["a", "b"]; empty means no cross-origin access at all."""
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 settings = Settings()

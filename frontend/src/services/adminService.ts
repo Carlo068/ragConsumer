@@ -1,9 +1,7 @@
-import { apiClient } from "./apiClient"
+import { API_BASE_URL, apiClient } from "./apiClient"
 import type { AuditFilters, AuditPage } from "@/models/audit"
 import type { CreateInviteRequest, Invite, InviteCreated } from "@/models/invite"
 import type { AdminUser } from "@/models/user"
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
 
 function auditQuery(filters: AuditFilters, extra: Record<string, string> = {}) {
   const params = new URLSearchParams(extra)

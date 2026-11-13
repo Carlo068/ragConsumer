@@ -9,7 +9,11 @@ import { SampleQuestions } from "./components/SampleQuestions"
 import { TokensPanel } from "./components/TokensPanel"
 import { buildSnippets } from "./snippets"
 
-const MCP_BASE_URL = import.meta.env.VITE_MCP_BASE_URL ?? "http://localhost:8002"
+// Where AI assistants connect. Empty means "this page's own address", which is
+// what production uses (the MCP server sits behind the same HTTPS address).
+const configuredMcpUrl = import.meta.env.VITE_MCP_BASE_URL
+const MCP_BASE_URL =
+  configuredMcpUrl === "" ? window.location.origin : (configuredMcpUrl ?? "http://localhost:8002")
 const SERVER_NAME = "ragconsumer"
 
 // A guide in four steps: choose the matters, create a key, paste it into the

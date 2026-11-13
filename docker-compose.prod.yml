@@ -1,0 +1,83 @@
+# Production configuration. Used on top of the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# What it changes:
+#  * adds Caddy, the only thing reachable from outside (ports 80 and 443)
+#  * removes every other published port, so Postgres, MinIO, Qdrant, the
+#    backend, the worker, the MCP server and the web app are internal only
+#  * serves the web app and the API from one HTTPS address (no CORS), with
+#    session cookies marked Secure, API docs switched off, and the real client
+#    address passed through for the audit log
+#  * restarts everything automatically after a crash or a reboot
+#
+# Needs DOMAIN in .env (the public address, e.g. matters.yourfirm.mx). With
+# DOMAIN=localhost it runs on a laptop using a local certificate.
+
+services:
+  caddy:
+    image: caddy:2.11
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env (the public address, e.g. matters.yourfirm.mx)}
+      MAX_REQUEST_MB: ${MAX_REQUEST_MB:-64}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+      - mcp_server
+
+  postgres:
+    restart: unless-stopped
+    ports: !reset []
+
+  minio:
+    restart: unless-stopped
+    ports: !reset []
+
+  qdrant:
+    restart: unless-stopped
+
+  backend:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      FRONTEND_URL: https://${DOMAIN}
+      SESSION_HTTPS_ONLY: "true"
+      DOCS_ENABLED: "false"
+      CORS_ORIGINS: ""
+      # Only Caddy can reach the backend, so trust the address it forwards.
+      FORWARDED_ALLOW_IPS: "*"
+
+  ingestion-worker:
+    restart: unless-stopped
+    ports: !reset []
+
+  mcp_server:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      PUBLIC_URL: https://${DOMAIN}
+
+  frontend:
+    restart: unless-stopped
+    ports: !reset []
+    build:
+      context: ./frontend
+      target: production
+      args:
+        # The API is on the same address, under /api; the AI connection
+        # address shown to people is the page's own address.
+        VITE_API_BASE_URL: /api
+        VITE_MCP_BASE_URL: ""
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -9,7 +9,8 @@
 # What it checks: every service is running and has not been restarting or killed
 # for lack of memory; the ingestion worker answers; the site works from outside
 # (the same smoke test as a deploy); the disk is not filling up; last night's
-# backup happened; the HTTPS certificate is not about to expire.
+# backup happened; the HTTPS certificate is not about to expire; no document is
+# stuck waiting to be indexed or failing for reasons that are the system's fault.
 #
 # Where alerts go (set in .env or the environment; at least one is needed):
 #   ALERT_WEBHOOK_URL   Slack / Mattermost / Teams / Discord incoming webhook
@@ -17,7 +18,8 @@
 #   HEARTBEAT_URL       pinged after every fully healthy run (healthchecks.io style),
 #                       so an outside service notices if this whole server goes silent
 # Other settings: MONITOR_DISK_MAX (default 85, percent), MONITOR_BACKUP_MAX_HOURS
-# (default 26), MONITOR_CERT_MIN_DAYS (default 14), MONITOR_REMIND_HOURS (default 6),
+# (default 26), MONITOR_CERT_MIN_DAYS (default 14), MONITOR_DOC_WAIT_MINUTES
+# (default 90), MONITOR_REMIND_HOURS (default 6),
 # MONITOR_STATE_DIR, COMPOSE_FILES, SMOKE_URL.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -122,6 +124,18 @@ if [[ -n "$DOMAIN" && "$DOMAIN" != localhost* && "$DOMAIN" != *.localhost ]]; th
     days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
     (( days < CERT_MIN_DAYS )) && problem "the HTTPS certificate expires in ${days} days (renewal is not working)"
   fi
+fi
+
+# 7. documents that are not getting indexed (a worker that is up but stuck, a backlog,
+#    or failures that are the system's fault rather than the file's)
+doc_wait="${MONITOR_DOC_WAIT_MINUTES:-90}"
+doc_sql="select (select count(*) from documents where status in ('uploaded','processing') and updated_at < now() - interval '${doc_wait} minutes') || ' ' || (select count(*) from documents where status = 'failed' and error_message in ('unexpected','timed_out','index_outdated') and updated_at > now() - interval '24 hours')"
+if counts="$(compose exec -T postgres sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$0"' "$doc_sql" 2>/dev/null)" && [[ -n "$counts" ]]; then
+  set -- $counts
+  (( ${1:-0} > 0 )) && problem "${1} document(s) have been waiting or processing for over ${doc_wait} minutes without progress"
+  (( ${2:-0} > 0 )) && problem "${2} document(s) failed because of the system (not the file) in the last 24 hours: check the worker logs, and re-index if the index is outdated"
+else
+  problem "the database could not be queried for stuck documents"
 fi
 
 # --- tell people only when something changes (or as a reminder) ---------------

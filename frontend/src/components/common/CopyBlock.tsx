@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { useI18n } from "@/i18n/useI18n"
 
 interface CopyBlockProps {
-  label: string
+  label?: string
   code: string
 }
 

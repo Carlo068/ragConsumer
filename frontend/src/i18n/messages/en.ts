@@ -20,7 +20,7 @@ export const en = {
   },
   nav: {
     collections: "Collections",
-    connect: "Connect",
+    connect: "Connect your AI",
     admin: "Users & invitations",
     signOut: "Sign out",
   },
@@ -172,19 +172,35 @@ export const en = {
     loadFailed: "Failed to load members",
   },
   connect: {
-    title: "Connect",
-    subtitle: "Let your own AI assistant search your matters",
-    beforeTitle: "Before you connect",
-    before1:
-      "Your AI assistant connects to one address and signs in with your own access key. It can only search the matters you have turned on for it on the collections list, and only while you still have access to them.",
-    before2:
-      "What you turn on here affects only your own AI, never a colleague's. Turn a matter off there whenever you want to keep it private.",
-    clientTitle: "Connect your MCP client",
-    cliLabel: "claude mcp add (CLI)",
+    title: "Connect your AI",
+    subtitle: "Follow these four steps once, and your AI assistant can search the matters you choose.",
+    done: "Done",
+    step1Title: "Choose which matters your AI can see",
+    step1Intro:
+      "Your AI can only search the matters you turn on here, and only while you still have access to them. This is only for you: it never changes what a colleague's AI can see.",
+    step1Empty:
+      "You don't have access to any matters yet. Ask the person who manages a matter to add you.",
+    step1Manage: "Go to your matters",
+    step2Title: "Create your personal access key",
+    step3Title: "Paste it into your AI assistant",
+    step3Intro:
+      "In your AI assistant, add a new connection (it may be called \"MCP server\" or \"connector\") and enter these two details:",
+    addressLabel: "Server address",
+    keyPlaceholder: "Create a key in step 2 and it will appear here, ready to copy.",
+    step3Note:
+      "Treat the key like a password. If you lose it or share it by mistake, revoke it in step 2 and create a new one.",
+    step4Title: "Try a question",
+    step4Intro: "Once it is connected, ask your assistant something like:",
+    sample1: "Which files do I have in my matters?",
+    sample2: "Search my documents for the termination clauses and tell me which file they are in.",
+    sample3: "Summarize what my documents say about the payment of the rent.",
+    advancedTitle: "Advanced: connection commands",
+    advancedIntro:
+      "For people who set up connections from a command line or a configuration file.",
+    cliLabel: "claude mcp add (command line)",
     jsonLabel: ".mcp.json",
   },
   tokens: {
-    title: "Your access keys",
     intro:
       "An access key lets your AI assistant search the matters you have access to, as you. Create one per device or app, and revoke it if you lose the device. Never share it: anyone who has it can search your matters.",
     nameLabel: "Name (for example, Claude on my laptop)",

@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
@@ -40,11 +39,7 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("tokens.title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
         <p className="text-muted-foreground text-sm">
           {t("tokens.intro")}
         </p>
@@ -103,13 +98,12 @@ export function TokensPanel({ tokens, onCreate, onRevoke, onCreated }: TokensPan
                 }
                 title={t("tokens.revokeTitle", { name: token.name })}
                 description={t("tokens.revokeDescription")}
-                confirmLabel="Revoke"
+                confirmLabel={t("tokens.revoke")}
                 onConfirm={() => onRevoke(token.id)}
               />
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }

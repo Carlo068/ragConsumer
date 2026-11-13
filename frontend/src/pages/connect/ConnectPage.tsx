@@ -1,28 +1,20 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CopyBlock } from "@/components/common/CopyBlock"
+import { useTokens } from "@/hooks/useTokens"
+import { TokensPanel } from "./components/TokensPanel"
+import { buildSnippets } from "./snippets"
 
 const MCP_BASE_URL = import.meta.env.VITE_MCP_BASE_URL ?? "http://localhost:8002"
 const SERVER_NAME = "ragconsumer"
 
 export function ConnectPage() {
   const mcpUrl = `${MCP_BASE_URL}/mcp`
-
-  const jsonSnippet = JSON.stringify(
-    {
-      mcpServers: {
-        [SERVER_NAME]: {
-          type: "http",
-          url: mcpUrl,
-        },
-      },
-    },
-    null,
-    2
-  )
-
-  const cliSnippet = `claude mcp add --transport http ${SERVER_NAME} ${mcpUrl}`
+  const { tokens, loading, error, createToken, revokeToken } = useTokens()
+  const [freshToken, setFreshToken] = useState<string | undefined>()
+  const { cli: cliSnippet, json: jsonSnippet } = buildSnippets(SERVER_NAME, mcpUrl, freshToken)
 
   return (
     <div className="mx-auto max-w-2xl p-8">
@@ -56,6 +48,18 @@ export function ConnectPage() {
           </p>
         </CardContent>
       </Card>
+
+      {loading && <p>Loading...</p>}
+      {error && <p className="text-destructive mb-4">{error}</p>}
+
+      <div className="mb-6">
+        <TokensPanel
+          tokens={tokens}
+          onCreate={createToken}
+          onRevoke={revokeToken}
+          onCreated={(created) => setFreshToken(created.token)}
+        />
+      </div>
 
       <Card>
         <CardHeader>

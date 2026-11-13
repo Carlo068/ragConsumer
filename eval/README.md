@@ -39,3 +39,19 @@ stemming 0.93/0.99; Spanish with stemming 0.96/1.00; **Spanish with stemming and
 Qdrant's IDF modifier 0.97/0.99 (chosen: best recall@1 and sparse-only MRR 0.95)**.
 Peak memory is the whole evaluation process (both models plus the in-memory index).
 
+### Could indexing be faster? (KAN-99)
+
+Measured on the 12-vCPU development VM, 256 chunks of about 800 characters with
+jina-embeddings-v2-base-es (see `docs/indexing-speed.md`):
+
+| Change | chunks/s | Hybrid recall@1 / @3 / MRR (97 queries) |
+|---|---|---|
+| as shipped | 3.6 | 0.97 / 0.99 / 0.97 |
+| more threads (4, 8, 12) or batch size (16 to 128) | 3.1 to 3.9 | unchanged |
+| 2 or 3 worker processes at once | 3.6 in total | unchanged |
+| int8-quantized model (onnxruntime dynamic quantization) | 5.4 | **0.91** / 0.99 / 0.95, paraphrase r@1 0.74 |
+
+Nothing safe was faster: the machine's CPU is already the limit, and the only change
+that helped (int8, 1.5x) cost six points of recall@1, which is not worth it for legal
+search. Not adopted.
+

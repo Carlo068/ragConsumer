@@ -1,3 +1,5 @@
 # Shell scripts must keep LF even on Windows checkouts (core.autocrlf=true
 # would otherwise give them CRLF and break `bash script.sh`).
 *.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf

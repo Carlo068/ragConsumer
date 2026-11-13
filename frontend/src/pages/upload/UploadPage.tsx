@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { useCollections } from "@/hooks/useCollections"
 import { useDocuments } from "@/hooks/useDocuments"
+import { canEditFiles } from "@/models/collection"
 import { DocumentList } from "./components/DocumentList"
 import { UploadForm } from "./components/UploadForm"
 
@@ -30,13 +31,25 @@ export function UploadPage() {
         />
       </div>
 
-      <div className="mb-6">
-        <UploadForm onUpload={upload} uploading={uploading} />
-      </div>
+      {canEditFiles(collection?.role) ? (
+        <div className="mb-6">
+          <UploadForm onUpload={upload} uploading={uploading} />
+        </div>
+      ) : (
+        collection && (
+          <p className="text-muted-foreground mb-6 text-sm">
+            You can view this collection, but only editors and owners can add or remove files.
+          </p>
+        )
+      )}
 
       {loading && <p>Loading documents...</p>}
       {error && <p className="text-destructive">{error}</p>}
-      <DocumentList documents={documents} onDelete={remove} />
+      <DocumentList
+        documents={documents}
+        onDelete={remove}
+        canDelete={canEditFiles(collection?.role)}
+      />
     </div>
   )
 }

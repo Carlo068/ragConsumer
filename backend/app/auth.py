@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import CollectionMember, User
+from app.models import ROLE_RANK, CollectionMember, CollectionRole, User
 
 _hasher = PasswordHasher()
 
@@ -44,9 +44,18 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-def require_collection_membership(
-    db: Session, user_id: uuid.UUID, collection_id: uuid.UUID
-) -> None:
+def require_collection_role(
+    db: Session,
+    user_id: uuid.UUID,
+    collection_id: uuid.UUID,
+    minimum: CollectionRole = CollectionRole.viewer,
+) -> CollectionMember:
+    """The one gate every matter route goes through.
+
+    Not a member -> 404, so the response never reveals that the matter exists.
+    A member whose role is too low -> 403: they already know it exists, and
+    telling them what they lack is more useful than a misleading 404.
+    """
     member = db.scalar(
         select(CollectionMember).where(
             CollectionMember.user_id == user_id,
@@ -54,5 +63,17 @@ def require_collection_membership(
         )
     )
     if member is None:
-        # 404, not 403 -- don't reveal whether the collection exists at all
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
+    if ROLE_RANK[member.role] < ROLE_RANK[minimum]:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"This action requires the {minimum.value} role or higher on this collection",
+        )
+    return member
+
+
+def require_collection_membership(
+    db: Session, user_id: uuid.UUID, collection_id: uuid.UUID
+) -> None:
+    """Any role at all. Kept for callers that only need 'is a member'."""
+    require_collection_role(db, user_id, collection_id, CollectionRole.viewer)

@@ -1,13 +1,13 @@
 from sqlalchemy import select
 
-from app.models import Collection, CollectionMember, Document, DocumentStatus
+from app.models import Collection, CollectionMember, CollectionRole, Document, DocumentStatus
 
 
 def _create_collection(db, user):
     collection = Collection(name="Doe Estate")
     db.add(collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=CollectionRole.owner))
     db.commit()
     return collection
 
@@ -107,7 +107,7 @@ def test_delete_document_404s_for_a_document_in_a_different_collection(
     other_collection = Collection(name="Smith v. Jones")
     db.add(other_collection)
     db.flush()
-    db.add(CollectionMember(user_id=user.id, collection_id=other_collection.id))
+    db.add(CollectionMember(user_id=user.id, collection_id=other_collection.id, role=CollectionRole.owner))
     document = Document(
         collection_id=other_collection.id,
         uploaded_by=user.id,

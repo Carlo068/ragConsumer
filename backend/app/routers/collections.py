@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_collection_membership
+from app.auth import get_current_user, require_collection_role
 from app.db import get_db
-from app.models import Collection, CollectionMember, Document, User
+from app.models import Collection, CollectionMember, CollectionRole, Document, User
 from app.schemas import CollectionCreate, CollectionOut, CollectionUpdate
 from app.storage import delete_objects_by_prefix
 from app.vectorstore import delete_document_chunks
@@ -19,13 +19,13 @@ def list_collections(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    collections = db.scalars(
-        select(Collection)
+    rows = db.execute(
+        select(Collection, CollectionMember.role)
         .join(CollectionMember, CollectionMember.collection_id == Collection.id)
         .where(CollectionMember.user_id == current_user.id)
         .order_by(Collection.name)
     ).all()
-    return collections
+    return [CollectionOut(id=c.id, name=c.name, role=role) for c, role in rows]
 
 
 @router.post("", response_model=CollectionOut, status_code=status.HTTP_201_CREATED)
@@ -37,10 +37,15 @@ def create_collection(
     collection = Collection(name=payload.name)
     db.add(collection)
     db.flush()  # populate collection.id before referencing it below
-    db.add(CollectionMember(user_id=current_user.id, collection_id=collection.id))
+    # Whoever creates a matter owns it.
+    db.add(
+        CollectionMember(
+            user_id=current_user.id, collection_id=collection.id, role=CollectionRole.owner
+        )
+    )
     db.commit()
     db.refresh(collection)
-    return collection
+    return CollectionOut(id=collection.id, name=collection.name, role=CollectionRole.owner)
 
 
 @router.patch("/{collection_id}", response_model=CollectionOut)
@@ -50,7 +55,7 @@ def rename_collection(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_collection_membership(db, current_user.id, collection_id)
+    member = require_collection_role(db, current_user.id, collection_id, CollectionRole.owner)
 
     collection = db.get(Collection, collection_id)
     if collection is None:
@@ -59,7 +64,7 @@ def rename_collection(
     collection.name = payload.name
     db.commit()
     db.refresh(collection)
-    return collection
+    return CollectionOut(id=collection.id, name=collection.name, role=member.role)
 
 
 @router.delete("/{collection_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -68,7 +73,7 @@ def delete_collection(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_collection_membership(db, current_user.id, collection_id)
+    require_collection_role(db, current_user.id, collection_id, CollectionRole.owner)
 
     collection = db.get(Collection, collection_id)
     if collection is None:

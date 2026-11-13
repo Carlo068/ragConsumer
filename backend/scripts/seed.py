@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.auth import hash_password
 from app.db import SessionLocal
-from app.models import Collection, CollectionMember, User
+from app.models import Collection, CollectionMember, CollectionRole, User
 
 # Dev-only data. alice is the firm admin, so the invite flow can be tried
 # locally; bob is a regular user.
@@ -18,9 +18,17 @@ SEED_USERS = [
 
 SEED_COLLECTIONS = ["Smith v. Jones", "Doe Estate", "Acme Corp Dispute"]
 
+# Deliberately uneven, so the role checks have something to prove: alice owns
+# her two matters; bob owns Acme but is only an editor on Doe Estate.
 ACCESS = {
-    "alice@example.com": ["Smith v. Jones", "Doe Estate"],
-    "bob@example.com": ["Doe Estate", "Acme Corp Dispute"],
+    "alice@example.com": {
+        "Smith v. Jones": CollectionRole.owner,
+        "Doe Estate": CollectionRole.owner,
+    },
+    "bob@example.com": {
+        "Doe Estate": CollectionRole.editor,
+        "Acme Corp Dispute": CollectionRole.owner,
+    },
 }
 
 
@@ -45,7 +53,7 @@ def get_or_create_collection(db, name):
     return collection
 
 
-def grant_access(db, user, collection):
+def grant_access(db, user, collection, role):
     link = db.scalar(
         select(CollectionMember).where(
             CollectionMember.user_id == user.id,
@@ -53,7 +61,9 @@ def grant_access(db, user, collection):
         )
     )
     if link is None:
-        db.add(CollectionMember(user_id=user.id, collection_id=collection.id))
+        db.add(CollectionMember(user_id=user.id, collection_id=collection.id, role=role))
+    else:
+        link.role = role
 
 
 def main():
@@ -67,9 +77,9 @@ def main():
             name: get_or_create_collection(db, name) for name in SEED_COLLECTIONS
         }
 
-        for email, collection_names in ACCESS.items():
-            for collection_name in collection_names:
-                grant_access(db, users[email], collections[collection_name])
+        for email, grants in ACCESS.items():
+            for collection_name, role in grants.items():
+                grant_access(db, users[email], collections[collection_name], role)
 
         db.commit()
     finally:

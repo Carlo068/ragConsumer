@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.main import app
-from app.models import Collection, CollectionMember, Invite
+from app.models import Collection, CollectionMember, CollectionRole, Invite
 from app.routers.admin import utcnow
 
 STRONG_PASSWORD = "a-long-passphrase"
@@ -149,7 +149,7 @@ def test_admin_gets_no_automatic_access_to_matters(admin_client, make_user, db):
     matter = Collection(name="Confidential matter")
     db.add(matter)
     db.flush()
-    db.add(CollectionMember(user_id=lawyer.id, collection_id=matter.id))
+    db.add(CollectionMember(user_id=lawyer.id, collection_id=matter.id, role=CollectionRole.owner))
     db.commit()
 
     assert client.get("/collections").json() == []

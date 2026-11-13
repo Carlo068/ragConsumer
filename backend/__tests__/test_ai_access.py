@@ -111,7 +111,7 @@ def test_an_owner_removing_someone_clears_their_selection(client, join, matter, 
 
 
 def test_deleting_a_matter_clears_selections(client, join, matter, db, monkeypatch):
-    monkeypatch.setattr("app.routers.collections.delete_document_chunks", lambda _: None)
+    monkeypatch.setattr("app.routers.collections.delete_matter_vectors", lambda _: None)
     monkeypatch.setattr("app.routers.collections.delete_objects_by_prefix", lambda _: None)
     owner = join("owner@firm.mx", CollectionRole.owner)
     login(client, "owner@firm.mx")

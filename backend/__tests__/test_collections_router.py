@@ -69,10 +69,10 @@ def test_delete_collection_cleans_up_minio_and_qdrant(logged_in_client, db, monk
     collection_id = str(collection_uuid)
     document_id = str(document.id)
 
-    deleted_doc_ids: list[str] = []
+    dropped_matters: list[str] = []
     deleted_prefixes: list[str] = []
     monkeypatch.setattr(
-        "app.routers.collections.delete_document_chunks", deleted_doc_ids.append
+        "app.routers.collections.delete_matter_vectors", dropped_matters.append
     )
     monkeypatch.setattr(
         "app.routers.collections.delete_objects_by_prefix", deleted_prefixes.append
@@ -81,9 +81,9 @@ def test_delete_collection_cleans_up_minio_and_qdrant(logged_in_client, db, monk
     response = client.delete(f"/collections/{collection_id}")
 
     assert response.status_code == 204
-    # cleanup must happen for every document in the collection, keyed by doc
-    # id (Qdrant) and by the collection's MinIO prefix, not per-document keys
-    assert deleted_doc_ids == [document_id]
+    # Cleanup covers the whole matter: its own Qdrant collection is dropped in
+    # one go, and its MinIO prefix is cleared (not per-document keys).
+    assert dropped_matters == [collection_id]
     assert deleted_prefixes == [f"collection-{collection_id}/"]
     # A plain select() (rather than db.get(), which special-cases a row it
     # already had loaded and would raise ObjectDeletedError instead of just

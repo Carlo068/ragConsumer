@@ -39,7 +39,7 @@ def _login_as(role, db, make_user, matter, monkeypatch):
     monkeypatch.setattr("app.routers.documents.delete_object", lambda *a, **k: None)
     monkeypatch.setattr("app.routers.documents.delete_document_chunks", lambda *a, **k: None)
     monkeypatch.setattr("app.routers.collections.delete_objects_by_prefix", lambda *a, **k: None)
-    monkeypatch.setattr("app.routers.collections.delete_document_chunks", lambda *a, **k: None)
+    monkeypatch.setattr("app.routers.collections.delete_matter_vectors", lambda *a, **k: None)
     return client
 
 

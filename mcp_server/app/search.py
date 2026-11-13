@@ -4,9 +4,8 @@ from sqlalchemy import bindparam, create_engine, text
 
 from app.config import settings
 
-# Must match ingestion_worker/app/pipeline.py exactly -- same collection name,
+# Must match ingestion_worker/app/pipeline.py exactly -- same collection naming,
 # same vector names, same embedding models -- since this reads what that writes.
-QDRANT_COLLECTION = "chunks"
 DENSE_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 SPARSE_MODEL_NAME = "Qdrant/bm25"
 
@@ -44,8 +43,21 @@ def get_allowed_matters(user_id: str) -> dict[str, str]:
     return {str(row[0]): row[1] for row in rows}
 
 
-def _in_matters(matter_ids: list[str]) -> models.FieldCondition:
-    return models.FieldCondition(key="collection_id", match=models.MatchAny(any=matter_ids))
+def matter_collection_name(matter_id: str) -> str:
+    # One Qdrant collection per matter. A tool call only ever names collections
+    # of matters the person's AI is allowed to reach (see get_allowed_matters),
+    # so a different matter's data is simply never queried.
+    return f"matter_{matter_id}"
+
+
+def _existing_matter_collections(matters: dict[str, str]) -> dict[str, str]:
+    """{qdrant collection name: matter name}, skipping matters with no
+    documents yet (their collection is created on first ingest)."""
+    return {
+        matter_collection_name(matter_id): name
+        for matter_id, name in matters.items()
+        if _qdrant_client.collection_exists(matter_collection_name(matter_id))
+    }
 
 
 def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
@@ -56,34 +68,39 @@ def search(user_id: str, query: str, limit: int = 5) -> list[dict]:
     dense_vec = list(_dense_model.embed([query]))[0]
     sparse_vec = list(_sparse_model.embed([query]))[0]
 
-    results = _qdrant_client.query_points(
-        collection_name=QDRANT_COLLECTION,
-        prefetch=[
-            models.Prefetch(query=dense_vec.tolist(), using="dense", limit=20),
-            models.Prefetch(
-                query=models.SparseVector(
-                    indices=sparse_vec.indices.tolist(),
-                    values=sparse_vec.values.tolist(),
+    hits = []
+    for collection_name, matter_name in _existing_matter_collections(matters).items():
+        results = _qdrant_client.query_points(
+            collection_name=collection_name,
+            prefetch=[
+                models.Prefetch(query=dense_vec.tolist(), using="dense", limit=20),
+                models.Prefetch(
+                    query=models.SparseVector(
+                        indices=sparse_vec.indices.tolist(),
+                        values=sparse_vec.values.tolist(),
+                    ),
+                    using="sparse",
+                    limit=20,
                 ),
-                using="sparse",
-                limit=20,
-            ),
-        ],
-        query=models.FusionQuery(fusion=models.Fusion.RRF),
-        query_filter=models.Filter(must=[_in_matters(list(matters))]),
-        limit=limit,
-        with_payload=True,
-    )
+            ],
+            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            limit=limit,
+            with_payload=True,
+        )
+        hits.extend((point, matter_name) for point in results.points)
 
+    # Each matter was ranked on its own; interleave by fused score and keep the
+    # best few overall.
+    hits.sort(key=lambda hit: hit[0].score, reverse=True)
     return [
         {
             "chunk_id": str(point.id),
             "doc_id": point.payload["doc_id"],
-            "matter": matters.get(point.payload["collection_id"], ""),
+            "matter": matter_name,
             "source_filename": point.payload["source_filename"],
             "text": point.payload["text"],
         }
-        for point in results.points
+        for point, matter_name in hits[:limit]
     ]
 
 
@@ -92,17 +109,16 @@ def get_content(user_id: str, chunk_id: str) -> str | None:
     if not matters:
         return NO_MATTERS_MESSAGE
 
-    points = _qdrant_client.retrieve(
-        collection_name=QDRANT_COLLECTION, ids=[chunk_id], with_payload=True
-    )
-    if not points:
-        return None
-    point = points[0]
-    if point.payload.get("collection_id") not in matters:
-        # Exists, but in a matter this person's AI can't reach -- treat exactly
-        # like not found.
-        return None
-    return point.payload["text"]
+    # The chunk's matter isn't known up front, so look in each matter this
+    # person's AI can reach. A chunk elsewhere is never looked at, and so is
+    # indistinguishable from one that doesn't exist.
+    for collection_name in _existing_matter_collections(matters):
+        points = _qdrant_client.retrieve(
+            collection_name=collection_name, ids=[chunk_id], with_payload=True
+        )
+        if points:
+            return points[0].payload["text"]
+    return None
 
 
 def get_document(user_id: str, doc_id: str) -> str | None:
@@ -110,21 +126,19 @@ def get_document(user_id: str, doc_id: str) -> str | None:
     if not matters:
         return NO_MATTERS_MESSAGE
 
-    points, _ = _qdrant_client.scroll(
-        collection_name=QDRANT_COLLECTION,
-        scroll_filter=models.Filter(
-            must=[
-                _in_matters(list(matters)),
-                models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id)),
-            ]
-        ),
-        with_payload=True,
-        limit=1000,
-    )
-    if not points:
-        return None
-    points.sort(key=lambda p: p.payload["chunk_index"])
-    return "\n\n".join(p.payload["text"] for p in points)
+    for collection_name in _existing_matter_collections(matters):
+        points, _ = _qdrant_client.scroll(
+            collection_name=collection_name,
+            scroll_filter=models.Filter(
+                must=[models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id))]
+            ),
+            with_payload=True,
+            limit=1000,
+        )
+        if points:
+            points.sort(key=lambda p: p.payload["chunk_index"])
+            return "\n\n".join(p.payload["text"] for p in points)
+    return None
 
 
 def list_documents(user_id: str) -> list[dict]:

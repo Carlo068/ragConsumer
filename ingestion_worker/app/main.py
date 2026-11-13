@@ -2,14 +2,9 @@ from urllib.parse import unquote_plus
 
 from fastapi import FastAPI, Request
 
-from app.pipeline import ensure_qdrant_collection, process_object
+from app.pipeline import process_object
 
 app = FastAPI()
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    ensure_qdrant_collection()
 
 
 @app.get("/health")

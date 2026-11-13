@@ -96,7 +96,7 @@ def delete_document(
     if document is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found")
 
-    delete_document_chunks(str(document_id))
+    delete_document_chunks(str(collection_id), str(document_id))
     delete_object(document.object_key)
 
     db.delete(document)

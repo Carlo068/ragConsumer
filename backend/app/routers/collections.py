@@ -16,7 +16,7 @@ from app.models import (
 )
 from app.schemas import CollectionCreate, CollectionOut, CollectionUpdate
 from app.storage import delete_objects_by_prefix
-from app.vectorstore import delete_document_chunks
+from app.vectorstore import delete_matter_vectors
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -99,14 +99,11 @@ def delete_collection(
     if collection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Collection not found")
 
-    # Clean up MinIO + Qdrant *before* the Postgres cascade removes the only
-    # record that these documents ever existed -- neither system is FK-linked
-    # to Postgres, so nothing does this automatically.
-    document_ids = db.scalars(
-        select(Document.id).where(Document.collection_id == collection_id)
-    ).all()
-    for doc_id in document_ids:
-        delete_document_chunks(str(doc_id))
+    # Clean up Qdrant + MinIO *before* the Postgres cascade removes the only
+    # record that this matter ever existed -- neither system is FK-linked to
+    # Postgres, so nothing does this automatically. A matter owns its whole
+    # Qdrant collection, so this is a single drop.
+    delete_matter_vectors(str(collection_id))
     delete_objects_by_prefix(f"collection-{collection_id}/")
 
     db.delete(collection)  # cascades collection_members + documents rows

@@ -299,6 +299,7 @@ export const en = {
     older: "Older",
     loadFailed: "Failed to load the activity log",
     actions: {
+      access_denied: "Refused a matter request",
       login_throttled: "Sign-in paused after repeated failures",
       logout: "Signed out",
       password_changed: "Password changed",

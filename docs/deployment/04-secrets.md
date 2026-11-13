@@ -36,6 +36,7 @@ exist anywhere else.
 | `MINIO_ROOT_PASSWORD` | Administration of document storage. Running services never use it; only the on-demand backup tool does. | MinIO restarts briefly. |
 | `BACKEND_MINIO_SECRET_KEY` | The backend's storage account (read, write, delete documents). | Backend restarts. |
 | `WORKER_MINIO_SECRET_KEY` | The worker's storage account (read-only). | Worker restarts. |
+| `MINIO_WEBHOOK_TOKEN` | Proves to the document worker that an "a file was uploaded" notice comes from the storage service. Low stakes (the call only wakes the worker). | Storage and the worker restart briefly. |
 | `QDRANT_API_KEY` | Full access to the search index, and the key that signs the per-search tokens limiting each person to their own matters. **The most sensitive one.** | Qdrant and its clients restart. Indexed data is unaffected. |
 
 ## Rotating

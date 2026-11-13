@@ -305,6 +305,7 @@ export const es: Messages = {
     older: "Más antiguos",
     loadFailed: "No se pudo cargar el registro de actividad",
     actions: {
+      access_denied: "Se rechazó el acceso a un asunto",
       login_throttled: "Inicio de sesión en pausa por intentos fallidos",
       logout: "Cerró sesión",
       password_changed: "Contraseña cambiada",

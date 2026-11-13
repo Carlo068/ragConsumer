@@ -21,6 +21,10 @@ class ApiError(HTTPException):
 
 
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
+    from app.denied import DENIED_CODES, record_denied  # local: denied needs the database layer
+
+    if exc.code in DENIED_CODES:
+        record_denied(request, exc.code, exc.status_code)
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail, "code": exc.code, "params": exc.params},

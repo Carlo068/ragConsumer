@@ -7,6 +7,9 @@
 
 services:
   backend:
+    environment:
+      # seed.py creates accounts with known passwords: only ever allowed in development.
+      SEED_ALLOWED: "true"
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic

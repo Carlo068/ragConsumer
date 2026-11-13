@@ -7,8 +7,9 @@
 #
 # Scenarios: first deploy; a good release with a database migration; a broken
 # release that must roll back by itself; a manual rollback across that
-# migration; and the refusals (dirty tree, unmerged commit, backup failure,
-# nothing to do).
+# migration; the refusals (dirty tree, unmerged commit, backup failure,
+# nothing to do); then the monitor (alerts on a change, once, with recovery),
+# and that the access log never records an invitation token.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 SRC="$PWD"
@@ -23,6 +24,7 @@ T="$(mktemp -d)"; command -v cygpath >/dev/null && T="$(cygpath -m "$T")"
 
 cleanup() {
   cd "$SRC"
+  [[ -n "${RECV_PID:-}" ]] && kill "$RECV_PID" >/dev/null 2>&1
   ( cd "$T/work" 2>/dev/null && docker compose $FILES --profile tools down -v --remove-orphans >/dev/null 2>&1 )
   rm -rf "$T"
 }
@@ -107,6 +109,73 @@ SKIP_BACKUP=1 deploy --rollback >"$T/d4.log" 2>&1 && ok "rollback to v1 complete
 [[ "$(in_backend 'grep -c v2-marker app/main.py' || true)" == "0" ]] && ok "the container runs v1's code" || bad "container still has v2's code"
 grep -q "database is newer than this version" <(dc logs backend 2>&1) && ok "v1 started on the newer database (migrations are additive)" || bad "v1 did not report starting on the newer database"
 [[ "$(wc -l < "$T/work/.deploy/history.log")" -ge 6 ]] && ok "every step is in the deploy history" || bad "history is incomplete"
+
+echo "Monitoring (v1 is running; alerts go to a local receiver)"
+cat > "$T/recv.py" <<'EOF'
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+LOG = sys.argv[2]
+class H(BaseHTTPRequestHandler):
+    def _log(self, body=""):
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(f"{self.command} {self.path} {body}\n")
+        self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+    def do_GET(self): self._log()
+    def do_POST(self): self._log(self.rfile.read(int(self.headers.get("content-length", 0))).decode())
+    def log_message(self, *a): pass
+HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+EOF
+: > "$T/alerts.log"
+python "$T/recv.py" 18099 "$T/alerts.log" & RECV_PID=$!
+sleep 1
+monitor() { ( cd "$T/work" && MONITOR_STATE_DIR="$T/mon" ALERT_WEBHOOK_URL=http://127.0.0.1:18099/hook HEARTBEAT_URL=http://127.0.0.1:18099/beat bash deploy/monitor.sh "$@" ); }
+alerts() { grep -c 'POST /hook' "$T/alerts.log" || true; }
+beats()  { grep -c 'GET /beat' "$T/alerts.log" || true; }
+
+KEY="$(docker run --rm --entrypoint sh ragconsumer-backup -c 'age-keygen 2>&1 | grep -o "age1[a-z0-9]*" | head -1')"
+dc --profile tools run --rm -T -e BACKUP_ALLOW_LOCAL_ONLY=true -e BACKUP_AGE_RECIPIENT="$KEY" backup backup >/dev/null 2>&1 && ok "a backup exists, so last night's backup check can pass" || bad "could not make a backup"
+
+out="$(monitor 2>&1)"; code=$?
+[[ $code -eq 0 ]] && grep -q "OK: all checks passed" <<<"$out" && ok "a healthy server: all checks pass" || { bad "healthy server reported problems: $out"; }
+[[ "$(alerts)" == "0" && "$(beats)" == "1" ]] && ok "no alert, and the outside heartbeat was pinged" || bad "alerts=$(alerts) heartbeats=$(beats)"
+
+dc stop ingestion-worker >/dev/null 2>&1
+out="$(monitor 2>&1)"; code=$?
+[[ $code -ne 0 ]] && grep -q "ingestion-worker" <<<"$out" && ok "a stopped worker is detected" || bad "stopped worker not detected: $out"
+[[ "$(alerts)" == "1" ]] && grep -q "ingestion-worker" "$T/alerts.log" && ok "and one alert names it" || bad "alerts=$(alerts)"
+monitor >/dev/null 2>&1
+[[ "$(alerts)" == "1" ]] && ok "the same problem is not announced again on the next run" || bad "duplicate alert (alerts=$(alerts))"
+[[ "$(beats)" == "1" ]] && ok "and no heartbeat is sent while unhealthy" || bad "heartbeat sent while unhealthy"
+dc start ingestion-worker >/dev/null 2>&1
+for _ in $(seq 1 40); do dc exec -T ingestion-worker python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)" >/dev/null 2>&1 && break; sleep 3; done
+out="$(monitor 2>&1)"; code=$?
+[[ $code -eq 0 ]] && ok "fixed: the next check passes" || bad "still failing after the fix: $out"
+grep -q "RECOVERED" "$T/alerts.log" && [[ "$(alerts)" == "2" ]] && ok "and a recovery message is sent" || bad "no recovery message (alerts=$(alerts))"
+
+out="$(MONITOR_DISK_MAX=1 monitor 2>&1)"; code=$?
+[[ $code -ne 0 ]] && grep -q "disk is" <<<"$out" && ok "a full disk is detected (limit lowered to force it)" || bad "disk check did not trigger: $out"
+monitor >/dev/null 2>&1
+
+VOLNAME=ragdeploytest_backup_data
+docker run --rm -v $VOLNAME:/b --entrypoint sh ragconsumer-backup -c 'echo 2020-01-01T00:00:00+00:00 > /b/last-success'
+out="$(monitor 2>&1)"; code=$?
+[[ $code -ne 0 ]] && grep -q "last successful backup" <<<"$out" && ok "a stale backup is detected" || bad "stale backup not detected: $out"
+docker run --rm -v $VOLNAME:/b --entrypoint sh ragconsumer-backup -c 'rm -f /b/last-success'
+out="$(monitor 2>&1)"; grep -q "no successful backup" <<<"$out" && ok "a missing backup record is detected" || bad "missing backup not detected: $out"
+dc --profile tools run --rm -T -e BACKUP_ALLOW_LOCAL_ONLY=true -e BACKUP_AGE_RECIPIENT="$KEY" backup backup >/dev/null 2>&1
+monitor >/dev/null 2>&1 && ok "a new backup clears it" || bad "still failing after a new backup"
+
+out="$(monitor --test 2>&1)"; grep -q "Test alert" "$T/alerts.log" && ok "the test alert reaches the channel" || bad "test alert not delivered: $out"
+out="$(cd "$T/work" && MONITOR_STATE_DIR="$T/mon2" bash deploy/monitor.sh --test 2>&1)"
+grep -q "no alert channel" <<<"$out" && ok "with no channel configured it says nobody was told" || bad "silent when no channel is configured: $out"
+
+echo "Access log never records an invitation token"
+curl -sk -o /dev/null -H 'Referer: https://localhost/invite/SECRETTOKEN4242' https://localhost/api/invites/SECRETTOKEN4242
+curl -sk -o /dev/null -X POST https://localhost/api/invites/SECRETTOKEN4242/accept -H 'content-type: application/json' -d '{}'
+sleep 2
+log="$(dc exec -T caddy sh -c 'cat /var/log/caddy/access.log' 2>/dev/null)"
+[[ -n "$log" ]] && ok "requests are written to the access log file" || bad "no access log"
+! grep -q SECRETTOKEN4242 <<<"$log" && grep -q "invite/REDACTED" <<<"$log" && ok "the invitation token is scrubbed from addresses and from Referer" || bad "an invitation token appears in the access log"
 
 echo
 if [[ $fail -eq 0 ]]; then echo "DEPLOY REHEARSAL PASSED"; else echo "DEPLOY REHEARSAL FAILED"; fi

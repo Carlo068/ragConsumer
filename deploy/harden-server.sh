@@ -12,6 +12,7 @@
 #   * fail2ban for SSH brute-force attempts
 #   * automatic security updates, with a nightly reboot window if one is needed
 #   * Docker: rotated logs, no-new-privileges
+#   * system logs kept 90 days within a size cap
 #   * a few kernel network protections
 #
 # Disk encryption is done by the cloud provider (encrypted volumes), not here:
@@ -174,6 +175,18 @@ EOF
   systemctl enable --now docker >/dev/null 2>&1 || true
   systemctl restart docker >/dev/null 2>&1 || true
 fi
+
+# ---------------------------------------------------------------------------
+log "System logs: kept 90 days, capped at 500 MB"
+install -d -m 755 /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/ragconsumer.conf <<'EOF'
+# Managed by deploy/harden-server.sh
+[Journal]
+Storage=persistent
+SystemMaxUse=500M
+MaxRetentionSec=90day
+EOF
+systemctl restart systemd-journald >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------
 log "Kernel network protections"

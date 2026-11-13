@@ -48,8 +48,20 @@
 		reverse_proxy frontend:80
 	}
 
+	# Access log kept for 90 days in a volume (the Docker log only keeps a few
+	# days). Invitation links carry a secret token in the address and the Referer
+	# header can repeat it, so both are scrubbed before anything is written.
+	# Authorization and Cookie headers are already redacted by Caddy.
 	log {
-		output stdout
-		format json
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 40
+			roll_keep_for 2160h
+		}
+		format filter {
+			wrap json
+			request>uri regexp /invites?/[^/?\s]+ /invite/REDACTED
+			request>headers>Referer delete
+		}
 	}
 }

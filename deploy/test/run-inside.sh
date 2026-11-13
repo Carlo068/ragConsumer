@@ -68,6 +68,15 @@ systemctl is-active ragconsumer-backup.timer >/dev/null 2>&1 && ok "and schedule
 [[ -z "$(systemd-analyze verify /etc/systemd/system/ragconsumer-backup.service /etc/systemd/system/ragconsumer-backup.timer 2>&1)" ]] && ok "systemd finds nothing wrong with the units" || bad "systemd-analyze reports problems: $(systemd-analyze verify /etc/systemd/system/ragconsumer-backup.service /etc/systemd/system/ragconsumer-backup.timer 2>&1 | head -3)"
 systemctl start ragconsumer-backup.service >/dev/null 2>&1 && ok "running it by hand works (stub docker)" || bad "service run failed"
 
+echo "Monitor timer and logs"
+bash deploy/install-monitor-timer.sh >/dev/null 2>&1 && ok "monitor timer installs" || bad "monitor timer failed to install"
+systemctl is-active ragconsumer-monitor.timer >/dev/null 2>&1 && ok "and runs every few minutes" || bad "monitor timer not active"
+[[ -z "$(systemd-analyze verify /etc/systemd/system/ragconsumer-monitor.service /etc/systemd/system/ragconsumer-monitor.timer 2>&1)" ]] && ok "systemd finds nothing wrong with the monitor units" || bad "monitor units: $(systemd-analyze verify /etc/systemd/system/ragconsumer-monitor.service /etc/systemd/system/ragconsumer-monitor.timer 2>&1 | head -3)"
+[[ "$(journalctl --disk-usage 2>/dev/null | wc -l)" -ge 1 && -f /etc/systemd/journald.conf.d/ragconsumer.conf ]] && ok "system logs have a size and age limit" || bad "journald limits missing"
+sed -i 's/^MaxRetentionSec=90day/MaxRetentionSec=1day/' /etc/systemd/journald.conf.d/ragconsumer.conf
+SKIP_DOCKER=1 bash deploy/check-hardening.sh >/dev/null 2>&1 && bad "did not notice the log retention being shortened" || ok "notices the log retention being changed"
+sed -i 's/^MaxRetentionSec=1day/MaxRetentionSec=90day/' /etc/systemd/journald.conf.d/ragconsumer.conf
+
 echo
 if [[ $fail -eq 0 ]]; then echo "HARDENING TESTS PASSED"; else echo "HARDENING TESTS FAILED"; fi
 exit $fail

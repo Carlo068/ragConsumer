@@ -34,6 +34,9 @@ export function Navbar() {
         <DropdownMenuContent align="end">
           <DropdownMenuItem render={<Link to="/collections">Collections</Link>} />
           <DropdownMenuItem render={<Link to="/connect">Connect</Link>} />
+          {user.is_admin && (
+            <DropdownMenuItem render={<Link to="/admin">Users & invitations</Link>} />
+          )}
           <DropdownMenuItem variant="destructive" onClick={() => logout()}>
             Sign out
           </DropdownMenuItem>

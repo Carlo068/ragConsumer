@@ -17,5 +17,10 @@ class Settings(BaseSettings):
 
     MAX_UPLOAD_SIZE_BYTES: int = 2 * 1024 * 1024
 
+    # Invite links point here; set to the public URL in production.
+    FRONTEND_URL: str = "http://localhost:5173"
+    INVITE_TTL_HOURS: int = 72
+    MIN_PASSWORD_LENGTH: int = 12
+
 
 settings = Settings()

@@ -86,8 +86,10 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture
 def make_user(db: Session):
-    def _make_user(email: str = "alice@example.com", password: str = "password123") -> User:
-        user = User(email=email, password_hash=hash_password(password))
+    def _make_user(
+        email: str = "alice@example.com", password: str = "password123", is_admin: bool = False
+    ) -> User:
+        user = User(email=email, password_hash=hash_password(password), is_admin=is_admin)
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -104,3 +106,13 @@ def logged_in_client(client: TestClient, make_user):
     )
     assert response.status_code == 200
     return client, user
+
+
+@pytest.fixture
+def admin_client(client: TestClient, make_user):
+    admin = make_user(email="admin@firm.mx", is_admin=True)
+    response = client.post(
+        "/auth/login", json={"email": admin.email, "password": "password123"}
+    )
+    assert response.status_code == 200
+    return client, admin

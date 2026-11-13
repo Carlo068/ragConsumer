@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
-interface ConnectionSnippetProps {
+interface CopyBlockProps {
   label: string
   code: string
 }
 
-export function ConnectionSnippet({ label, code }: ConnectionSnippetProps) {
+export function CopyBlock({ label, code }: CopyBlockProps) {
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {

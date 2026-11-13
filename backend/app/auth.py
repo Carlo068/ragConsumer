@@ -36,6 +36,14 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    # 403 is fine here, unlike the 404 used for matters: the admin pages'
+    # existence isn't sensitive, only what's inside matters is.
+    if not current_user.is_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Administrator access required")
+    return current_user
+
+
 def require_collection_membership(
     db: Session, user_id: uuid.UUID, collection_id: uuid.UUID
 ) -> None:

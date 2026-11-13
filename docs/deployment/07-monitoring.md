@@ -17,6 +17,7 @@ something is wrong, and again when it is fixed.
 | Disk below 85% | A full disk stops the database and uploads |
 | A successful backup in the last 26 hours | The nightly backup silently stopped (`05-backups.md`) |
 | HTTPS certificate valid for more than 14 days | Automatic renewal broke |
+| No document waiting or processing for over 90 minutes without progress, and none failed for a system reason (`unexpected`, `timed_out`, `index_outdated`) in the last 24 hours | A worker that is up but stuck, a backlog, or an index that needs rebuilding. A scanned or empty file failing is the file's fault and does not alert |
 
 It alerts **when the set of problems changes**, not every five minutes: one
 message when something breaks, a reminder every 6 hours while it stays broken, and
@@ -67,6 +68,8 @@ with an error, so `systemctl --failed` also shows it.
 | `the disk is N% full` | `docker system df` and `df -h`. Old images: `docker image prune -a`. Otherwise grow the volume at the provider. Do not delete anything under `/var/lib/docker/volumes` by hand. |
 | `no successful backup` / `last successful backup was N hours ago` | `journalctl -u ragconsumer-backup.service -n 50`, then run a backup by hand (`05-backups.md`). Most often the off-server bucket's key or space. |
 | `the HTTPS certificate expires in N days` | Caddy renews on its own at 30 days. Failing means it cannot: check DNS still points here and ports 80/443 are open, `docker compose ... logs caddy`. |
+| `N document(s) have been waiting or processing...` | The worker is alive but not finishing documents. `docker compose ... logs --tail=200 ingestion-worker`; restarting it (`docker compose ... restart ingestion-worker`) puts in-flight documents back in the queue. |
+| `N document(s) failed because of the system...` | See the failure reason on the document in the app. `index_outdated` means the search models changed: `docker compose exec backend python scripts/reindex_all.py --yes`. |
 | `RECOVERED` | Nothing to do. |
 
 ## Logs: what is kept, where, and for how long

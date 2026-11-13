@@ -165,6 +165,28 @@ out="$(monitor 2>&1)"; grep -q "no successful backup" <<<"$out" && ok "a missing
 dc --profile tools run --rm -T -e BACKUP_ALLOW_LOCAL_ONLY=true -e BACKUP_AGE_RECIPIENT="$KEY" backup backup >/dev/null 2>&1
 monitor >/dev/null 2>&1 && ok "a new backup clears it" || bad "still failing after a new backup"
 
+dc stop ingestion-worker >/dev/null 2>&1   # so it cannot pick the test document up itself
+dc exec -T backend python - <<'EOF' >/dev/null 2>&1
+import datetime as dt
+from app.db import SessionLocal
+from app.models import Collection, Document, DocumentStatus, User
+with SessionLocal() as db:
+    user = User(email="monitor-test@example.test", password_hash="x")
+    matter = Collection(name="monitor test")
+    db.add_all([user, matter]); db.flush()
+    old = dt.datetime.now() - dt.timedelta(hours=5)
+    db.add(Document(collection_id=matter.id, uploaded_by=user.id, source_filename="stuck.pdf", object_key="k/stuck.pdf", status=DocumentStatus.uploaded, updated_at=old))
+    db.commit()
+EOF
+out="$(monitor 2>&1)"; code=$?
+[[ $code -ne 0 ]] && grep -q "waiting or processing" <<<"$out" && ok "a document stuck waiting to be indexed is detected" || bad "stuck document not detected: $out"
+sql_w() { dc exec -T postgres sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$0"' "$1" >/dev/null 2>&1; }
+sql_w "update documents set status='failed', error_message='unexpected', updated_at=now() where source_filename='stuck.pdf'"
+out="$(monitor 2>&1)"; grep -q "failed because of the system" <<<"$out" && ok "a failure caused by the system (not the file) is detected" || bad "system failure not detected: $out"
+sql_w "update documents set error_message='no_text' where source_filename='stuck.pdf'"
+dc start ingestion-worker >/dev/null 2>&1
+for _ in $(seq 1 40); do dc exec -T ingestion-worker python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)" >/dev/null 2>&1 && break; sleep 3; done
+monitor >/dev/null 2>&1 && ok "a file that simply has no text does not raise an alert" || bad "alerted on a file-caused failure"
 out="$(monitor --test 2>&1)"; grep -q "Test alert" "$T/alerts.log" && ok "the test alert reaches the channel" || bad "test alert not delivered: $out"
 out="$(cd "$T/work" && MONITOR_STATE_DIR="$T/mon2" bash deploy/monitor.sh --test 2>&1)"
 grep -q "no alert channel" <<<"$out" && ok "with no channel configured it says nobody was told" || bad "silent when no channel is configured: $out"
